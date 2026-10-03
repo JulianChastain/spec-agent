@@ -1,0 +1,34 @@
+{
+  "name": "spec-agent",
+  "version": "0.1.0",
+  "description": "A small, model-agnostic coding agent built on the Vercel AI SDK, benchmarked on replicate-lang",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "spec-agent": "dist/spec-agent.mjs"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "esbuild src/cli.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/spec-agent.mjs --banner:js=\"#!/usr/bin/env node\nimport { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\"",
+    "report": "tsx scripts/report.ts",
+    "loc": "wc -l src/*.ts prompts/*.md prompts/overlays/*.md"
+  },
+  "dependencies": {
+    "ai": "7.0.183",
+    "@ai-sdk/openai": "4.0.125",
+    "@ai-sdk/anthropic": "4.0.110",
+    "@ai-sdk/google": "4.0.128",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "vitest": "5.1.2",
+    "typescript": "7.0.2",
+    "@types/node": "22.20.7",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15"
+  }
+}
