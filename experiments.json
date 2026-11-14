@@ -1,0 +1,28 @@
+{
+  "replicateLang": "../replicate-lang",
+  "lang": "python",
+  "overshootReserveUsd": 0.5,
+  "phases": {
+    "smoke": {
+      "budget": "10m", "cap": 0.6, "concurrency": 3, "staggerS": 20,
+      "runs": [
+        { "model": "openai:gpt-6.2-astra", "tag": "astra-6-2", "run": 1 },
+        { "model": "anthropic:claude-opus-5-5", "tag": "opus-5-5", "run": 1 },
+        { "model": "google:gemini-4-carbon", "tag": "carbon-4", "run": 1 }
+      ]
+    },
+    "main": {
+      "budget": "2h", "cap": 6.5, "concurrency": 4, "staggerS": 20,
+      "runs": [
+        { "model": "openai:gpt-6.2-astra", "tag": "astra-6-2", "run": 1 },
+        { "model": "anthropic:claude-opus-5-5", "tag": "opus-5-5", "run": 1 },
+        { "model": "google:gemini-4-carbon", "tag": "carbon-4", "run": 1 },
+        { "model": "google:gemini-4-carbon", "tag": "carbon-4-nocompact", "run": 1, "agentArgs": "--no-compaction" },
+        { "model": "openai:gpt-6.2-astra", "tag": "astra-6-2", "run": 2 },
+        { "model": "anthropic:claude-opus-5-5", "tag": "opus-5-5", "run": 2 },
+        { "model": "google:gemini-4-carbon", "tag": "carbon-4", "run": 2 },
+        { "model": "google:gemini-4-carbon", "tag": "carbon-4-nocompact", "run": 2, "agentArgs": "--no-compaction" }
+      ]
+    }
+  }
+}
