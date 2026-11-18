@@ -1,0 +1,9 @@
+{"type":"run_start","t":0}
+{"type":"model_call","purpose":"main","latencyMs":1000,"ttftMs":100,"costUsd":0.1,"t":1}
+{"type":"tool_call","ok":true,"t":2}
+{"type":"model_call","purpose":"main","latencyMs":3000,"ttftMs":null,"costUsd":0.2,"t":3}
+{"type":"tool_call","ok":false,"t":4}
+{"type":"compaction","n":1,"t":5}
+{"type":"model_call","purpose":"compaction","latencyMs":9000,"ttftMs":50,"costUsd":0.05,"t":6}
+{"type":"model_call","purpose":"main","latencyMs":2000,"ttftMs":200,"costUsd":0.15,"t":7}
+{"type":"model_call","pur

@@ -1,0 +1,1 @@
+{"id": "spec-agent-fx-python-2h-r1", "agent": "spec-agent", "model": "mock:stub", "tag": "fx", "agent_args": "", "language": "python", "budget": "2h", "run": 1, "cap_usd": 1, "wall_s": 600.0, "cost_usd": 0.5, "stop_reason": "time budget", "score": 0.5, "tiers": {"1": {"passed": 3, "total": 4, "rate": 0.75}, "2": {"passed": 1, "total": 4, "rate": 0.25}}, "grade_error": null}
