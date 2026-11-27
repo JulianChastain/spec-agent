@@ -26,7 +26,20 @@ export interface Run {
   score: number | null;
   tiers: Record<string, { passed: number; total: number }>;
   costUsd: number; // the harness's figure (result.json)
-  costFromCalls: number; // sum of model_call events, as a cross-check
+  costFromCalls: number; // sum of model_call events' costUsd, as a cross-check
+  costPriced: number; // sum of our price-table figure (costUsdPriced; costUsd for older runs)
+  costReported: number; // sum of the provider's own per-call figure, where it sent one
+  callsWithoutReportedCost: number;
+  upstreams: string[]; // hosts OpenRouter routed to (empty for direct APIs)
+  inputTokens: number; // all calls, including cached
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  mainInputTokens: number; // main-loop calls only, for the cache-read share
+  mainCacheReadTokens: number;
+  peakContextTokens: number; // largest input + output of any main call
+  nudges: number;
   mainCalls: number;
   compactionCalls: number;
   latenciesMs: number[]; // main-loop calls only
@@ -37,6 +50,8 @@ export interface Run {
   toolErrors: number;
   modelErrors: number;
 }
+
+const sum = (xs: any[], f: (x: any) => unknown) => xs.reduce((a, x) => a + (Number(f(x)) || 0), 0);
 
 export function readJsonl(file: string): any[] {
   if (!existsSync(file)) return [];
@@ -69,7 +84,21 @@ export function loadRun(dir: string): Run | null {
     score: r.score ?? null,
     tiers,
     costUsd: r.cost_usd,
-    costFromCalls: calls.reduce((a, e) => a + e.costUsd, 0),
+    costFromCalls: sum(calls, (e) => e.costUsd),
+    costPriced: sum(calls, (e) => e.costUsdPriced ?? e.costUsd),
+    costReported: sum(calls, (e) => e.costUsdReported ?? 0),
+    callsWithoutReportedCost: calls.filter((e) => typeof e.costUsdReported !== "number").length,
+    upstreams: [...new Set(calls.map((e) => e.upstream).filter((u: unknown): u is string => typeof u === "string"))].sort(),
+    inputTokens: sum(calls, (e) => e.inputTokens),
+    cacheReadTokens: sum(calls, (e) => e.cacheReadTokens),
+    cacheWriteTokens: sum(calls, (e) => e.cacheWriteTokens),
+    outputTokens: sum(calls, (e) => e.outputTokens),
+    reasoningTokens: sum(calls, (e) => e.reasoningTokens),
+    mainInputTokens: sum(main, (e) => e.inputTokens),
+    mainCacheReadTokens: sum(main, (e) => e.cacheReadTokens),
+    peakContextTokens: Math.max(0, ...main.map((e) => (e.inputTokens ?? 0) + (e.outputTokens ?? 0))),
+    nudges: events.filter((e) => e.type === "message" && e.message?.role === "user"
+      && JSON.stringify(e.message.content).includes("You replied without calling a tool")).length,
     mainCalls: main.length,
     compactionCalls: calls.length - main.length,
     latenciesMs: main.map((e) => e.latencyMs),
@@ -128,7 +157,108 @@ function spendTable(all: Run[]): string {
   ].join("\n");
 }
 
-export function buildSections(all: Run[]): Record<string, string> {
+const short = (r: Run) => r.id.replace(/^spec-agent-/, "");
+const tok = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(0)}K` : String(n));
+const share = (a: number, b: number) => (b ? pct(a / b) : "–");
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+const table = (head: string, rows: string[]) => [head, head.replace(/[^|]+/g, " --- "), ...rows].join("\n");
+
+/** Runs grouped by tag (one model + settings), in first-seen order. */
+function byTag(runs: Run[]): [string, Run[]][] {
+  const m = new Map<string, Run[]>();
+  for (const r of runs) m.set(r.tag, [...(m.get(r.tag) ?? []), r]);
+  return [...m.entries()].map(([t, rs]) => [t, rs.sort((a, b) => a.run - b.run)]);
+}
+
+/** Score by model at an equal cap: both runs and the mean (n = 2 per cell). */
+function headlineTable(runs: Run[]): string {
+  const rows = byTag(runs).map(([, rs]) => {
+    const scores = rs.map((r) => r.score).filter((x): x is number => x !== null);
+    const m = mean(scores);
+    const c = mean(rs.map((r) => r.costUsd))!;
+    const each = (f: (r: Run) => string) => rs.map(f).join(" / ");
+    return `| ${rs[0]!.model} | ${each((r) => (r.crashed ? "**CRASH** " : "") + pct(r.score))} | **${pct(m)}** | ${each((r) => usd(r.costUsd))} | `
+      + `${each((r) => String(r.mainCalls))} | ${each((r) => `${r.harnessStop} / ${r.agentStop}`)} | `
+      + `${m === null || !c ? "–" : `${(100 * m / c).toFixed(2)} pts/$`} |`;
+  });
+  return table("| Model | Score (r1 / r2) | Mean | Cost (r1 / r2) | Steps (r1 / r2) | Stop, harness / agent (r1 / r2) | Mean score per mean $ |", rows);
+}
+
+function tierTable(runs: Run[]): string {
+  const tiers = [...new Set(runs.flatMap((r) => Object.keys(r.tiers)))].sort();
+  const rows = byTag(runs).flatMap(([, rs]) => [
+    ...rs.map((r) => `| ${short(r)} | ${tiers.map((t) => tierCell(r, t)).join(" | ")} |`),
+    `| **${rs[0]!.model} mean** | ${tiers.map((t) => {
+      const v = rs.map((r) => r.tiers[t]).filter(Boolean).map((x) => x!.passed / x!.total);
+      return `**${pct(mean(v))}**`;
+    }).join(" | ")} |`,
+  ]);
+  return table(`| Run | ${tiers.map((t) => `Tier ${t}`).join(" | ")} |`, rows);
+}
+
+function ablationTable(runs: Run[]): string {
+  const rows = runs.map((r) => `| ${short(r)} | ${r.compaction ? "on" : "off"} | ${pct(r.score)} | ${usd(r.costUsd)} | ${r.mainCalls} | `
+    + `${r.compactions} | ${tok(r.peakContextTokens)} | ${share(r.mainCacheReadTokens, r.mainInputTokens)} | ${r.harnessStop} / ${r.agentStop} |`);
+  const arm = (on: boolean) => runs.filter((r) => r.compaction === on);
+  const summary = [true, false].map((on) => {
+    const rs = arm(on);
+    const sc = rs.map((r) => r.score).filter((x): x is number => x !== null);
+    return `| **compaction ${on ? "on" : "off"}, mean** | | **${pct(mean(sc))}** (range ${pct(sc.length ? Math.min(...sc) : null)}–${pct(sc.length ? Math.max(...sc) : null)}) | `
+      + `${usd(mean(rs.map((r) => r.costUsd)) ?? 0)} | ${mean(rs.map((r) => r.mainCalls))?.toFixed(0) ?? "–"} | ${mean(rs.map((r) => r.compactions))?.toFixed(1) ?? "–"} | | | |`;
+  });
+  return table("| Run | Compaction | Score | Cost | Steps | Compactions | Peak context | Cache-read share (main) | Stop, harness / agent |", [...rows, ...summary]);
+}
+
+function telemetryTable(runs: Run[]): string {
+  const rows = byTag(runs).map(([, rs]) => {
+    const lat = rs.flatMap((r) => r.latenciesMs);
+    const ttft = rs.flatMap((r) => r.ttftsMs);
+    const s3 = (xs: number[]) => [50, 90, 95].map((p) => secs(percentile(xs, p))).join(" / ");
+    const t = (f: (r: Run) => number) => rs.reduce((a, r) => a + f(r), 0);
+    return `| ${rs[0]!.model}${rs[0]!.compaction ? "" : " (no compaction)"} | ${t((r) => r.mainCalls)} | ${tok(t((r) => r.inputTokens))} | `
+      + `${tok(t((r) => r.cacheReadTokens))} (${share(t((r) => r.cacheReadTokens), t((r) => r.inputTokens))}) | ${tok(t((r) => r.cacheWriteTokens))} | `
+      + `${tok(t((r) => r.outputTokens))} | ${tok(t((r) => r.reasoningTokens))} | ${s3(ttft)} | ${s3(lat)} | ${[...new Set(rs.flatMap((r) => r.upstreams))].join(", ") || "direct"} |`;
+  });
+  return table("| Model (both runs pooled) | Main calls | Input tokens | Cache reads (share) | Cache writes | Output | of which reasoning | TTFT p50 / p90 / p95 | Call latency p50 / p90 / p95 | Upstream |", rows);
+}
+
+export interface UsageSnapshot { label: string; takenAt: string; usage: number }
+
+/** Spend on the key between each `<phase>-before` and the next `<phase>-after` snapshot. */
+export function usageDeltas(snaps: UsageSnapshot[]): Record<string, { delta: number; windows: number }> {
+  const out: Record<string, { delta: number; windows: number }> = {};
+  const sorted = [...snaps].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
+  for (const [i, b] of sorted.entries()) {
+    const m = b.label.match(/^(.+)-before$/);
+    if (!m) continue;
+    const a = sorted.slice(i + 1).find((x) => x.label === `${m[1]}-after` || x.label === `${m[1]}-before`);
+    if (!a || a.label !== `${m[1]}-after`) continue;
+    const o = (out[m[1]!] ??= { delta: 0, windows: 0 });
+    o.delta += a.usage - b.usage;
+    o.windows++;
+  }
+  return out;
+}
+
+const PHASE_OF = (r: Run) => (r.budget === "2h" ? "main" : "smoke");
+const diff = (a: number, b: number) => (b ? `${(100 * (a - b) / b >= 0 ? "+" : "")}${(100 * (a - b) / b).toFixed(2)}%` : "–");
+
+function costCheckTable(all: Run[], snaps: UsageSnapshot[]): string {
+  const rows = all.map((r) => `| ${short(r)} | ${usd4(r.costPriced)} | ${usd4(r.costReported)} | ${diff(r.costPriced, r.costReported)} | `
+    + `${r.callsWithoutReportedCost} | ${usd4(r.costUsd)} | ${r.modelErrors} |`);
+  const runs = table("| Run | Priced (src/pricing.ts) | Reported by OpenRouter | Priced vs reported | Calls with no reported cost | Harness meter | Failed calls (unpriced) |", rows);
+  const deltas = usageDeltas(snaps);
+  const phases = ["smoke", "main"].filter((p) => all.some((r) => PHASE_OF(r) === p)).map((p) => {
+    const rs = all.filter((r) => PHASE_OF(r) === p);
+    const harness = rs.reduce((a, r) => a + r.costUsd, 0);
+    const d = deltas[p];
+    return `| ${p} | ${rs.length} | ${usd4(harness)} | ${d ? usd4(d.delta) : "–"} | ${d ? diff(harness, d.delta) : "–"} | ${d?.windows ?? 0} |`;
+  });
+  return `${runs}\n\n${table("| Phase | Runs | Sum of harness meters | Key spend over the phase (GET /api/v1/key) | Meters vs key | Snapshot windows |", phases)}`;
+}
+const usd4 = (x: number) => `$${x.toFixed(4)}`;
+
+export function buildSections(all: Run[], snaps: UsageSnapshot[] = []): Record<string, string> {
   const two = all.filter((r) => r.budget === "2h").sort((a, b) => a.id.localeCompare(b.id));
   const mainRuns = two.filter((r) => r.compaction);
   // The ablation's "on" arm is the main-matrix runs of the same model.
@@ -137,7 +267,11 @@ export function buildSections(all: Run[]): Record<string, string> {
   return {
     results: mainRuns.length ? resultsTable(mainRuns) : "_No 2h runs._",
     smoke: all.some((r) => r.budget !== "2h") ? resultsTable(all.filter((r) => r.budget !== "2h")) : "_No smoke runs._",
-    ablation: ablation.length ? resultsTable(ablation) : "_No ablation runs._",
+    headline: mainRuns.length ? headlineTable(mainRuns) : "_No 2h runs._",
+    tiers: mainRuns.length ? tierTable(mainRuns) : "_No 2h runs._",
+    ablation: ablation.length ? ablationTable(ablation) : "_No ablation runs._",
+    telemetry: two.length ? telemetryTable(two) : "_No 2h runs._",
+    costcheck: all.length ? costCheckTable(all, snaps) : "_No runs._",
     activity: two.length ? activityTable(two) : "_No 2h runs._",
     spend: spendTable(all),
   };
@@ -154,7 +288,11 @@ export function loadAll(dir: string): Run[] {
 function main() {
   const args = process.argv.slice(2);
   const dir = path.resolve(args.find((a) => !a.startsWith("--")) ?? path.join(ROOT, "results"));
-  const sections = buildSections(loadAll(dir));
+  const usageDir = path.join(dir, "openrouter-usage");
+  const snaps: UsageSnapshot[] = existsSync(usageDir)
+    ? readdirSync(usageDir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(path.join(usageDir, f), "utf8")))
+    : [];
+  const sections = buildSections(loadAll(dir), snaps);
   if (!args.includes("--write")) {
     for (const [k, v] of Object.entries(sections)) console.log(`## ${k}\n\n${v}\n`);
     return;

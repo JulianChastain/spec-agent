@@ -124,8 +124,8 @@ async function main() {
     }
     if (running.size) await Promise.race(running);
   }
-  // OpenRouter's usage figure may lag the last call by a little.
-  if (viaOpenRouter) await new Promise((res) => setTimeout(res, 60_000));
+  // OpenRouter's usage figure lagged the last call by 1-2 minutes in the probe.
+  if (viaOpenRouter) await new Promise((res) => setTimeout(res, 180_000));
   await snapshot("after");
   console.log(`phase ${phaseName} complete; total spent: $${spentSoFar(resultsDir).total.toFixed(4)}`);
 }
