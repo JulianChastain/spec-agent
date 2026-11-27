@@ -87,6 +87,23 @@ describe("run_shell", () => {
     }
   });
 
+  it("hides the OpenRouter key, by name and by value", async () => {
+    process.env.OPENROUTER_API_KEY = "sk-or-v1-should-not-leak-0123";
+    process.env.OPENROUTER_REFERER = "harmless-but-named"; // any *OPENROUTER* name goes
+    process.env.INNOCENT_NAME = "prefix-sk-or-v1-should-not-leak-0123"; // a copied value goes too
+    try {
+      const r = await executeTool("run_shell", { command: "env" }, ctx(workspace()));
+      expect(r.output).not.toContain("should-not-leak");
+      expect(r.output).not.toContain("OPENROUTER");
+      expect(r.output).not.toContain("INNOCENT_NAME");
+      expect(r.output).toContain("PATH=");
+    } finally {
+      delete process.env.OPENROUTER_API_KEY;
+      delete process.env.OPENROUTER_REFERER;
+      delete process.env.INNOCENT_NAME;
+    }
+  });
+
   it("kills commands that exceed the timeout", async () => {
     const t0 = Date.now();
     const r = await executeTool("run_shell", { command: "sleep 30", timeout_s: 1 }, ctx(workspace()));

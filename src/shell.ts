@@ -24,8 +24,14 @@ export function truncateMiddle(s: string, max: number): string {
  * agent process needs its API key; the code the model runs never does, and
  * a stray `env` would otherwise copy the key into the transcript.
  */
+export const SECRET_NAME = /(API_KEY|TOKEN|SECRET|OPENROUTER)/i;
+
 export function shellEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  return Object.fromEntries(Object.entries(env).filter(([k]) => !/(API_KEY|TOKEN|SECRET)/i.test(k)));
+  // Drop credentials by name, then drop any other variable that carries one
+  // of their values (a key copied into an innocuously named variable).
+  const values = Object.entries(env).filter(([k, v]) => SECRET_NAME.test(k) && v && v.length >= 8).map(([, v]) => v!);
+  return Object.fromEntries(Object.entries(env).filter(([k, v]) =>
+    !SECRET_NAME.test(k) && !(v && values.some((s) => v.includes(s)))));
 }
 
 export function runShell(command: string, cwd: string, timeoutMs: number, maxChars: number): Promise<ShellResult> {
