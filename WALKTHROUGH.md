@@ -2,14 +2,14 @@
 
 Read the code in this order. Each step depends only on the ones before it.
 
-## 1. `src/pricing.ts` (87 lines): what a call costs
+## 1. `src/pricing.ts` (129 lines): what a call costs
 
 - A table of USD per 1M tokens, each entry with its source URL.
 - `costOf()` splits a request's prompt into three buckets: fresh input, cache reads and cache writes. They're billed differently.
 - It applies a long-context tier when the prompt passes the model's threshold.
 - Everything that talks about money (the budget check, telemetry, the harness's meter) goes through this one function.
 
-## 2. `src/tools.ts` (167 lines) and `src/shell.ts` (69 lines): what the model can do
+## 2. `src/tools.ts` (167 lines) and `src/shell.ts` (75 lines): what the model can do
 
 - **Schemas.** One zod schema per tool (`schemas`). `toolSet` hands them to the AI SDK *without* `execute`, so the SDK only describes the tools to the model and never runs them.
 - **`executeTool()`** is the single entry point:
@@ -25,16 +25,20 @@ Read the code in this order. Each step depends only on the ones before it.
   - head plus rolling-tail buffering, so the end of long output survives;
   - `shellEnv()`, which strips API keys from the commands' environment.
 
-## 3. `src/providers.ts` (63 lines) and `src/mock.ts` (48 lines): which model
+## 3. `src/providers.ts` (107 lines) and `src/mock.ts` (48 lines): which model
 
-- `parseModel("anthropic:claude-opus-5-5")` → `createModel()` returns an AI SDK `LanguageModel`. That is the only place provider packages are imported.
-- `withCacheBreakpoints()` is the only provider overlay in the code. Anthropic caches only where you mark it, so it marks the pinned prefix and the newest message. OpenAI and Gemini cache automatically.
+- `parseModel("openrouter:anthropic/claude-opus-5.5")` → `createModel()` returns an AI SDK `LanguageModel`. That is the only place provider packages are imported. A `ModelRef` carries both the *provider* (who gets the request) and the *vendor* (who made the model), because they differ through OpenRouter.
+- Two provider overlays:
+  - `withCacheBreakpoints()`. Anthropic models cache only where you mark them, directly or through OpenRouter, so it marks the pinned prefix and the newest message. OpenAI and Gemini cache implicitly.
+  - `openRouterSettings()` pins each vendor to its first-party OpenRouter endpoint with no fallbacks.
 - `mock.ts` is a scripted model for zero-cost pipeline runs.
 
-## 4. `src/llm.ts` (80 lines): one model call
+## 4. `src/llm.ts` (172 lines): one model call
 
 - `callModel()` = one `streamText`. It consumes the stream, timing the first token. It rethrows a stream `error` part, since streamed errors arrive as parts rather than exceptions.
 - It returns the response messages, the tool calls, and a `model_call` telemetry event with tokens, cost, latency and TTFT.
+- **Cost.** Through OpenRouter, the event's `costUsd` is OpenRouter's own billed figure for the call (`usage.cost`). Our price table's figure is logged beside it, for the cross-check.
+- **Failed calls.** When a call dies mid-stream, the helpers at the bottom (`generationIdOf`, `lookupOpenRouterBill`) find out what OpenRouter billed for it, so the loop can count it.
 
 ## 5. `src/compaction.ts` (96 lines): keeping the context small
 
@@ -43,7 +47,7 @@ Read the code in this order. Each step depends only on the ones before it.
 - **`renderForSummary()`** turns old messages into clipped plain text for the cheap model.
 - **`buildSummaryBlock()`** assembles the summary, the `NOTES.md` read from disk *now*, and the file index.
 
-## 6. `src/loop.ts` (230 lines): the agent
+## 6. `src/loop.ts` (260 lines): the agent
 
 Read `runAgent()` top to bottom:
 1. **Setup:** the tool context, the state, the counters, and `contextTokens` (exact after each call, estimated in between).
@@ -52,7 +56,7 @@ Read `runAgent()` top to bottom:
 4. **The `while` loop:**
    1. check budgets;
    2. maybe compact;
-   3. make the call, with an abort at the remaining wall time, and on error log, back off, and stop after 3 in a row;
+   3. make the call, with an abort at the remaining wall time. On error: bill the failed call if OpenRouter says what it cost, log it, back off, and stop after 3 errors in a row (6 if they're dropped connections);
    4. append the response;
    5. if there are no tool calls, nudge;
    6. otherwise run each tool call in order;
@@ -60,7 +64,7 @@ Read `runAgent()` top to bottom:
    8. stop on `finish`.
 5. **The final `result` event.** `total_cost_usd` is the field name replicate-lang's harness already reads.
 
-## 7. `src/config.ts` (80 lines), `src/telemetry.ts` (58 lines), `src/cli.ts` (42 lines): the edges
+## 7. `src/config.ts` (93 lines), `src/telemetry.ts` (63 lines), `src/cli.ts` (50 lines): the edges
 
 - Flags → zod `ConfigSchema` with defaults.
 - The JSONL event stream.
@@ -118,11 +122,12 @@ For time to first token. It's the latency number users feel in an interactive pr
 **8. How do you know the telemetry's cost numbers are right?**
 - `costOf()` has unit tests against hand-computed prices.
 - Every price has a source URL.
-- The report cross-checks the sum of logged per-call costs against the harness's figure for each run.
-- Calls that fail aren't priced, because no usage comes back, and their count is reported per run so that gap is visible.
+- Through OpenRouter, each call is billed at OpenRouter's own reported cost, and the price table's figure is logged beside it. The report compares the two per run.
+- The report also checks the sum of per-call costs against the harness meter per run, and against the key's actual spend over each phase (`GET /api/v1/key`, snapshotted before and after).
+- A call that fails mid-stream returns no usage, but OpenRouter still bills it. The loop looks up its cost by generation id and counts it. The smoke tests are where that gap was found: the key-level check caught a 23% undercount.
 
 **9. Where does the agent's isolation come from?**
-replicate-lang's sandbox. The agent runs inside a container on an internal Docker network whose only exit is a proxy that allows the three model API hosts. `run_shell` is a plain child process in that container, and it can't see the API keys. When the budget ends, the harness pauses and commits the container, so nothing can change before grading.
+replicate-lang's sandbox. The agent runs inside a container on an internal Docker network whose only exit is a proxy that allows the model API hosts (for these runs, `openrouter.ai`). `run_shell` is a plain child process in that container, and it can't see the API keys. When the budget ends, the harness pauses and commits the container, so nothing can change before grading.
 
 **10. What would you change next?**
 That depends on the failure taxonomy in WRITEUP.md. Two structural candidates:

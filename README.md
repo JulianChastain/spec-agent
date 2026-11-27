@@ -8,7 +8,7 @@ A small, model-agnostic coding agent in TypeScript, built on the [Vercel AI SDK]
 - **Model routing**: one model for the main loop, a cheaper one for compaction (`--compaction-model`; it defaults to the same provider's cheap model).
 - **Telemetry** (`src/telemetry.ts`): a JSONL event stream. It has every model call (tokens, cached tokens, cost, latency, TTFT, tool calls), every message, and every compaction.
 
-About 1,000 lines in `src/`. [WALKTHROUGH.md](WALKTHROUGH.md) is the guided tour, [DECISIONS.md](DECISIONS.md) explains every choice, and [WRITEUP.md](WRITEUP.md) has the results.
+About 1,250 lines in `src/`. [WALKTHROUGH.md](WALKTHROUGH.md) is the guided tour, [DECISIONS.md](DECISIONS.md) explains every choice, and [WRITEUP.md](WRITEUP.md) has the results.
 
 ## Use
 
