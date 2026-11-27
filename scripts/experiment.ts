@@ -26,6 +26,8 @@ export function loadEnvFile(file: string): Record<string, string> {
   return out;
 }
 
+export const PROVIDER_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "OPENROUTER_API_KEY"];
+
 export const runId = (lang: string, budget: string, r: RunSpec) => `spec-agent-${r.tag}-${lang}-${budget}-r${r.run}`;
 
 /** Actual spend of every finished, non-mock spec-agent run. */
@@ -55,8 +57,22 @@ async function main() {
   const resultsDir = path.join(rl, "runs", "results");
   // Our environment minus any provider key, plus the keys from .env only.
   const env: NodeJS.ProcessEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/API_KEY/.test(k)));
-  for (const k of ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY"]) if (dotenv[k]) env[k] = dotenv[k];
+  for (const k of PROVIDER_KEYS) if (dotenv[k]) env[k] = dotenv[k];
   env.SPEC_AGENT_DIR = ROOT;
+
+  // OpenRouter phases: record the key's spend and the listed prices before
+  // and after, for the report's cross-check against the per-call costs.
+  const viaOpenRouter = phase.runs.some((r) => r.model.startsWith("openrouter:")) && !dryRun;
+  const snapshot = async (when: string) => {
+    if (!viaOpenRouter) return;
+    const key = dotenv.OPENROUTER_API_KEY;
+    if (!key) throw new Error("OPENROUTER_API_KEY is not in .env");
+    const { snapshotUsage } = await import("./openrouter-usage.ts");
+    console.log(`  usage snapshot: ${path.relative(ROOT, await snapshotUsage(key, `${phaseName}-${when}`))}`);
+    const p = spawn("npx", ["tsx", "scripts/openrouter-prices.ts", `${phaseName}-${when}`], { cwd: ROOT, stdio: "inherit" });
+    await new Promise((res) => p.on("close", res));
+  };
+  await snapshot("before");
 
   const logDir = path.join(ROOT, "runs", "logs");
   mkdirSync(logDir, { recursive: true });
@@ -108,6 +124,9 @@ async function main() {
     }
     if (running.size) await Promise.race(running);
   }
+  // OpenRouter's usage figure may lag the last call by a little.
+  if (viaOpenRouter) await new Promise((res) => setTimeout(res, 60_000));
+  await snapshot("after");
   console.log(`phase ${phaseName} complete; total spent: $${spentSoFar(resultsDir).total.toFixed(4)}`);
 }
 

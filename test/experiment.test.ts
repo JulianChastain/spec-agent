@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadEnvFile, runId, spentSoFar } from "../scripts/experiment.ts";
+import { loadEnvFile, PROVIDER_KEYS, runId, spentSoFar } from "../scripts/experiment.ts";
+import { pickUsage } from "../scripts/openrouter-usage.ts";
 
 describe("spend guard accounting", () => {
   it("sums actual cost of finished runs, skips mock runs, and lists unfinished ones", () => {
@@ -27,5 +28,14 @@ describe("spend guard accounting", () => {
     const f = path.join(mkdtempSync(path.join(tmpdir(), "env-")), ".env");
     writeFileSync(f, "# c\nA_API_KEY='sk-1'\nEMPTY=\nMAX_TOTAL_USD = 60\n");
     expect(loadEnvFile(f)).toEqual({ A_API_KEY: "sk-1", MAX_TOTAL_USD: "60" });
+  });
+
+  it("passes the OpenRouter key to the harness", () => {
+    expect(PROVIDER_KEYS).toContain("OPENROUTER_API_KEY");
+  });
+
+  it("keeps only numeric usage from GET /api/v1/key, never the label", () => {
+    expect(pickUsage({ label: "sk-or-v1-abc...xyz", usage: 1.5, limit_remaining: 48.5, is_free_tier: false }))
+      .toEqual({ usage: 1.5, limit_remaining: 48.5, is_free_tier: false });
   });
 });

@@ -1,0 +1,234 @@
+{
+ "takenAt": "2026-11-27T21:45:13.653Z",
+ "specChars": 17157,
+ "models": {
+  "openrouter:openai/gpt-6.2-astra": [
+   {
+    "inputTokens": 5210,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 5207,
+    "outputTokens": 10,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.052494,
+    "costUsdPriced": 0.052494,
+    "upstream": "OpenAI",
+    "ttftMs": 3102,
+    "latencyMs": 3293
+   },
+   {
+    "inputTokens": 5242,
+    "cacheReadTokens": 5207,
+    "cacheWriteTokens": 32,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0026668,
+    "costUsdPriced": 0.0026668,
+    "upstream": "OpenAI",
+    "ttftMs": 1310,
+    "latencyMs": 1399
+   },
+   {
+    "inputTokens": 5270,
+    "cacheReadTokens": 5239,
+    "cacheWriteTokens": 28,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0026396,
+    "costUsdPriced": 0.0026395999999999998,
+    "upstream": "OpenAI",
+    "ttftMs": 2042,
+    "latencyMs": 2143
+   }
+  ],
+  "openrouter:openai/gpt-6-luna": [
+   {
+    "inputTokens": 5210,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 5207,
+    "outputTokens": 33,
+    "reasoningTokens": 24,
+    "costUsdReported": 0.000667675,
+    "costUsdPriced": 0.000667675,
+    "upstream": "OpenAI",
+    "ttftMs": 1233,
+    "latencyMs": 2132
+   },
+   {
+    "inputTokens": 5265,
+    "cacheReadTokens": 5207,
+    "cacheWriteTokens": 55,
+    "outputTokens": 15,
+    "reasoningTokens": 8,
+    "costUsdReported": 0.000066745,
+    "costUsdPriced": 0.000066745,
+    "upstream": "OpenAI",
+    "ttftMs": 1054,
+    "latencyMs": 1102
+   },
+   {
+    "inputTokens": 5292,
+    "cacheReadTokens": 5262,
+    "cacheWriteTokens": 27,
+    "outputTokens": 16,
+    "reasoningTokens": 9,
+    "costUsdReported": 0.000064295,
+    "costUsdPriced": 0.00006429500000000001,
+    "upstream": "OpenAI",
+    "ttftMs": 1041,
+    "latencyMs": 1085
+   }
+  ],
+  "openrouter:anthropic/claude-opus-5.5": [
+   {
+    "inputTokens": 7490,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 7486,
+    "outputTokens": 10,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.037646,
+    "costUsdPriced": 0.037646,
+    "upstream": "Anthropic",
+    "ttftMs": 975,
+    "latencyMs": 1109
+   },
+   {
+    "inputTokens": 7521,
+    "cacheReadTokens": 7486,
+    "cacheWriteTokens": 31,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0017882,
+    "costUsdPriced": 0.0017882,
+    "upstream": "Anthropic",
+    "ttftMs": 1077,
+    "latencyMs": 1091
+   },
+   {
+    "inputTokens": 7548,
+    "cacheReadTokens": 7517,
+    "cacheWriteTokens": 27,
+    "outputTokens": 38,
+    "reasoningTokens": 30,
+    "costUsdReported": 0.0024144,
+    "costUsdPriced": 0.0024144,
+    "upstream": "Anthropic",
+    "ttftMs": 1808,
+    "latencyMs": 1831
+   }
+  ],
+  "openrouter:anthropic/claude-haiku-5.5": [
+   {
+    "inputTokens": 7490,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 7486,
+    "outputTokens": 75,
+    "reasoningTokens": 60,
+    "costUsdReported": 0.00097365,
+    "costUsdPriced": 0.00097365,
+    "upstream": "Anthropic",
+    "ttftMs": 920,
+    "latencyMs": 946
+   },
+   {
+    "inputTokens": 7588,
+    "cacheReadTokens": 7486,
+    "cacheWriteTokens": 98,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.00009051,
+    "costUsdPriced": 0.00009051,
+    "upstream": "Anthropic",
+    "ttftMs": 750,
+    "latencyMs": 764
+   },
+   {
+    "inputTokens": 7617,
+    "cacheReadTokens": 7584,
+    "cacheWriteTokens": 29,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.000082865,
+    "costUsdPriced": 0.00008286500000000001,
+    "upstream": "Anthropic",
+    "ttftMs": 685,
+    "latencyMs": 701
+   }
+  ],
+  "openrouter:google/gemini-4-carbon": [
+   {
+    "inputTokens": 5177,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "outputTokens": 9,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.010444,
+    "costUsdPriced": 0.010444,
+    "upstream": "Google AI Studio",
+    "ttftMs": 3874,
+    "latencyMs": 3885
+   },
+   {
+    "inputTokens": 5208,
+    "cacheReadTokens": 3128,
+    "cacheWriteTokens": 0,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0045328,
+    "costUsdPriced": 0.0045328,
+    "upstream": "Google AI Studio",
+    "ttftMs": 5122,
+    "latencyMs": 5147
+   },
+   {
+    "inputTokens": 5236,
+    "cacheReadTokens": 3159,
+    "cacheWriteTokens": 0,
+    "outputTokens": 2,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0044899,
+    "costUsdPriced": 0.0044899,
+    "upstream": "Google AI Studio",
+    "ttftMs": 4114,
+    "latencyMs": 4144
+   }
+  ],
+  "openrouter:google/gemini-3.5-flash-lite": [
+   {
+    "inputTokens": 5193,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 0,
+    "outputTokens": 6,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.0015729,
+    "costUsdPriced": 0.0015729,
+    "upstream": "Google AI Studio",
+    "ttftMs": 547,
+    "latencyMs": 624
+   },
+   {
+    "inputTokens": 5217,
+    "cacheReadTokens": 2030,
+    "cacheWriteTokens": 0,
+    "outputTokens": 2,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.001022,
+    "costUsdPriced": 0.001022,
+    "upstream": "Google AI Studio",
+    "ttftMs": 585,
+    "latencyMs": 602
+   },
+   {
+    "inputTokens": 5237,
+    "cacheReadTokens": 2027,
+    "cacheWriteTokens": 0,
+    "outputTokens": 2,
+    "reasoningTokens": 0,
+    "costUsdReported": 0.00102881,
+    "costUsdPriced": 0.00102881,
+    "upstream": "Google AI Studio",
+    "ttftMs": 637,
+    "latencyMs": 646
+   }
+  ]
+ }
+}

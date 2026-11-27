@@ -1,0 +1,11 @@
+{
+ "label": "probe-after",
+ "takenAt": "2026-11-27T21:46:58.062Z",
+ "usage": 0.10159474,
+ "usage_daily": 0.10159474,
+ "usage_weekly": 0.10159474,
+ "usage_monthly": 0.10159474,
+ "limit": 50,
+ "limit_remaining": 49.89840526,
+ "is_free_tier": false
+}
