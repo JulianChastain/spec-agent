@@ -176,3 +176,18 @@ The gate is `scripts/smoke-check.ts`. Every check must pass for all three smoke 
   3. Dropped connections get their own limit of 6 consecutive failures before the run stops with `model error`. Other errors keep the limit of 3, and any success resets both. Without this, Astra's two drops in a row were one away from ending a run for an infrastructure reason.
 - Astra and Opus passed every per-run check in attempt 1, but the phase-level cost check is part of the gate, so all three runs were re-run on the fixed bundle as attempt 2 (r2).
 - **The scores weren't the problem.** Astra and Opus both scored **100%** (2,761/2,761) inside the 10-minute, $0.60 smoke budget. Opus did it in 4 calls and 71 s: it wrote a 238-line interpreter in one call, checked the 20 examples, and called `finish`. I read the frozen interpreter in full. It reads only the program file, and it handles the documented traps explicitly (`set_int_max_str_digits(0)`, the recursion limit plus a 1 GB thread stack, `//`). Nothing points to a leak; Mini-Core in Python is within one-shot reach of these models.
+
+**Attempt 2 (r2, 22:04 UTC): every per-run check passed, but the phase cost check failed. The cause was a harness bug, now fixed.**
+
+- All three runs passed every per-run check. Astra (stopped on the dollar budget), Opus (`finish`) and Carbon (`finish`) all scored **100%**.
+- The key spent $1.2066 over the window, against $1.0498 of meters (−13%). Two calls, one Astra and one Opus, had dropped mid-stream again, and the new billing lookup found nothing for either within its 17-second window. A few minutes later `GET /api/v1/generation` had them: $0.0807 + $0.0762 = $0.1570, which closes the gap to the cent. So the lookup now retries for about 2 minutes.
+- **The drops were mine, not OpenRouter's.**
+  - In both attempts, the drops in different runs happened at the same moment: the moment another run started.
+  - The proxy container had been *created* at 22:05:05, one second after the Carbon run's start.
+  - Each run start calls `build_images()`, which rebuilt the unchanged proxy and got a new image id (`20efb52e…` vs `ae740273…`). `ensure_network()` then treated the running proxy as stale and replaced it, cutting every other sandbox's open API stream.
+  - That replacement rule came from my earlier adapter commit (the "stale proxy" fix above). It was harmless for one run at a time, and fatal at concurrency 3–4.
+- **The fix** (replicate-lang commit "Harness: keep the running proxy unless its allowlist or config changed …", grading untouched):
+  - `ensure_network()` compares the allowlist and `tinyproxy.conf` inside the running proxy with the files in `runs/proxy/`, and keeps the proxy if they match.
+  - If they differ while other sandboxes are on the network, it refuses to start the run rather than cut them off.
+  - Verified: two more rebuild-and-ensure cycles left the proxy container untouched, still enforcing the OpenRouter allowlist.
+- This supersedes my reading of attempt 1, where I called the drops "intermittent upstream disconnects": they were this bug. The failed-call billing and the separate transport-error limit stay, because a real upstream drop can still happen. Attempt 3 re-runs all three, since the cost gate failed for the phase as a whole.
