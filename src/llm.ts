@@ -142,13 +142,15 @@ export interface FailedCallBill {
 
 /**
  * What OpenRouter billed for one generation (GET /api/v1/generation). Its
- * stats can take a few seconds to appear, so it retries; null if they never do.
+ * stats can take a minute or more to appear, so it retries for ~2 minutes; null if
+ * they never do (the key-level cross-check in the report still counts it).
  */
 export async function lookupOpenRouterBill(generationId: string, apiKey: string, opts: {
   fetch?: typeof fetch; delaysMs?: number[];
 } = {}): Promise<FailedCallBill | null> {
   const f = opts.fetch ?? fetch;
-  for (const delay of opts.delaysMs ?? [2_000, 5_000, 10_000]) {
+  // Stats for a cancelled generation took minutes to appear in the smoke runs.
+  for (const delay of opts.delaysMs ?? [5_000, 15_000, 30_000, 60_000]) {
     await new Promise((res) => setTimeout(res, delay));
     try {
       const res = await f(`https://openrouter.ai/api/v1/generation?id=${encodeURIComponent(generationId)}`,
