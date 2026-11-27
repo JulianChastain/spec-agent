@@ -1,0 +1,201 @@
+{
+ "retrievedAt": "2026-11-27T22:53:19.054Z",
+ "models": {
+  "openrouter:anthropic/claude-haiku-5.5": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "input_cache_write_1h": "0.0000002",
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.0000005",
+      "completion": "0.0000025",
+      "input_cache_read": "0.00000005",
+      "input_cache_write": "0.000000625",
+      "input_cache_write_1h": "0.000001"
+     }
+    ]
+   },
+   "pinnedEndpoint": "anthropic",
+   "pinnedEndpointPricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "input_cache_write_1h": "0.0000002",
+    "discount": 0,
+    "overrides": [
+     {
+      "min_prompt_tokens": 100000,
+      "prompt": "0.0000005",
+      "completion": "0.0000025",
+      "input_cache_read": "0.00000005",
+      "input_cache_write": "0.000000625",
+      "input_cache_write_1h": "0.000001"
+     }
+    ]
+   },
+   "pinnedEndpointStatus": 0
+  },
+  "openrouter:anthropic/claude-opus-5.5": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.000004",
+    "completion": "0.00002",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000002",
+    "input_cache_write": "0.000005",
+    "input_cache_write_1h": "0.000008"
+   },
+   "pinnedEndpoint": "anthropic",
+   "pinnedEndpointPricing": {
+    "prompt": "0.000004",
+    "completion": "0.00002",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000002",
+    "input_cache_write": "0.000005",
+    "input_cache_write_1h": "0.000008",
+    "discount": 0
+   },
+   "pinnedEndpointStatus": 0
+  },
+  "openrouter:google/gemini-3.5-flash-lite": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.0000003",
+    "completion": "0.0000025",
+    "image": "0.0000003",
+    "audio": "0.0000003",
+    "input_audio_cache": "0.00000003",
+    "web_search": "0.014",
+    "internal_reasoning": "0.0000025",
+    "input_cache_read": "0.00000003",
+    "input_cache_write": "0.0000000833333333333333"
+   },
+   "pinnedEndpoint": "google-ai-studio",
+   "pinnedEndpointPricing": {
+    "prompt": "0.0000003",
+    "completion": "0.0000025",
+    "image": "0.0000003",
+    "audio": "0.0000003",
+    "input_audio_cache": "0.00000003",
+    "web_search": "0.014",
+    "internal_reasoning": "0.0000025",
+    "input_cache_read": "0.00000003",
+    "input_cache_write": "0.0000000833333333333333",
+    "discount": 0
+   },
+   "pinnedEndpointStatus": 0
+  },
+  "openrouter:google/gemini-4-carbon": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.000002",
+    "completion": "0.00001",
+    "image": "0.000002",
+    "audio": "0.000002",
+    "input_audio_cache": "0.0000001",
+    "web_search": "0.014",
+    "internal_reasoning": "0.00001",
+    "input_cache_read": "0.0000001",
+    "input_cache_write": "0.0000001875"
+   },
+   "pinnedEndpoint": "google-ai-studio",
+   "pinnedEndpointPricing": {
+    "prompt": "0.000002",
+    "completion": "0.00001",
+    "image": "0.000002",
+    "audio": "0.000002",
+    "input_audio_cache": "0.0000001",
+    "web_search": "0.014",
+    "internal_reasoning": "0.00001",
+    "input_cache_read": "0.0000001",
+    "input_cache_write": "0.0000001875",
+    "discount": 0.5
+   },
+   "pinnedEndpointStatus": 0
+  },
+  "openrouter:openai/gpt-6-luna": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "overrides": [
+     {
+      "min_prompt_tokens": 272000,
+      "prompt": "0.0000002",
+      "completion": "0.00000075",
+      "input_cache_read": "0.00000002",
+      "input_cache_write": "0.00000025"
+     }
+    ]
+   },
+   "pinnedEndpoint": "openai",
+   "pinnedEndpointPricing": {
+    "prompt": "0.0000001",
+    "completion": "0.0000005",
+    "web_search": "0.01",
+    "input_cache_read": "0.00000001",
+    "input_cache_write": "0.000000125",
+    "discount": 0,
+    "overrides": [
+     {
+      "min_prompt_tokens": 272000,
+      "prompt": "0.0000002",
+      "completion": "0.00000075",
+      "input_cache_read": "0.00000002",
+      "input_cache_write": "0.00000025"
+     }
+    ]
+   },
+   "pinnedEndpointStatus": 0
+  },
+  "openrouter:openai/gpt-6.2-astra": {
+   "listed": true,
+   "modelPricing": {
+    "prompt": "0.000008",
+    "completion": "0.00004",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000004",
+    "input_cache_write": "0.00001",
+    "overrides": [
+     {
+      "min_prompt_tokens": 272000,
+      "prompt": "0.000016",
+      "completion": "0.00006",
+      "input_cache_read": "0.0000008",
+      "input_cache_write": "0.00002"
+     }
+    ]
+   },
+   "pinnedEndpoint": "openai",
+   "pinnedEndpointPricing": {
+    "prompt": "0.000008",
+    "completion": "0.00004",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000004",
+    "input_cache_write": "0.00001",
+    "discount": 0,
+    "overrides": [
+     {
+      "min_prompt_tokens": 272000,
+      "prompt": "0.000016",
+      "completion": "0.00006",
+      "input_cache_read": "0.0000008",
+      "input_cache_write": "0.00002"
+     }
+    ]
+   },
+   "pinnedEndpointStatus": 0
+  }
+ }
+}

@@ -1,0 +1,85 @@
+{
+ "id": "spec-agent-carbon-4-python-2h-r1",
+ "agent": "spec-agent",
+ "model": "openrouter:google/gemini-4-carbon",
+ "tag": "carbon-4",
+ "agent_args": "",
+ "language": "python",
+ "budget": "2h",
+ "budget_s": 7200,
+ "run": 1,
+ "cap_usd": 6.5,
+ "wall_s": 1883.5,
+ "cost_usd": 1.755,
+ "cost_source": "reported per call by OpenRouter (usage.cost), summed by spec-agent",
+ "stop_reason": "agent finished",
+ "image": "minicore-run:spec-agent-carbon-4-python-2h-r1",
+ "files": [
+  "./tests/run_tests.py",
+  "./NOTES.md",
+  "./__pycache__/minicorecpython-313.pyc",
+  "./mc/compiler.py",
+  "./mc/lexer.py",
+  "./mc/parser.py",
+  "./mc/errors.py",
+  "./mc/ast_nodes.py",
+  "./mc/__init__.py",
+  "./mc/__pycache__/errors.cpython-313.pyc",
+  "./mc/__pycache__/ast_nodes.cpython-313.pyc",
+  "./mc/__pycache__/typecheck.cpython-313.pyc",
+  "./mc/__pycache__/__init__.cpython-313.pyc",
+  "./mc/__pycache__/lexer.cpython-313.pyc",
+  "./mc/__pycache__/vm.cpython-313.pyc",
+  "./mc/__pycache__/parser.cpython-313.pyc",
+  "./mc/__pycache__/compiler.cpython-313.pyc",
+  "./mc/typecheck.py",
+  "./mc/vm.py",
+  "./minicore"
+ ],
+ "score": 1.0,
+ "components": {
+  "suite": {
+   "passed": 344,
+   "total": 344,
+   "rate": 1.0
+  },
+  "generated": {
+   "passed": 2000,
+   "total": 2000,
+   "rate": 1.0
+  },
+  "typecheck": {
+   "passed": 400,
+   "total": 400,
+   "rate": 1.0
+  },
+  "resource": {
+   "passed": 17,
+   "total": 17,
+   "rate": 1.0
+  }
+ },
+ "tiers": {
+  "1": {
+   "passed": 581,
+   "total": 581,
+   "rate": 1.0
+  },
+  "2": {
+   "passed": 451,
+   "total": 451,
+   "rate": 1.0
+  },
+  "3": {
+   "passed": 1107,
+   "total": 1107,
+   "rate": 1.0
+  },
+  "4": {
+   "passed": 622,
+   "total": 622,
+   "rate": 1.0
+  }
+ },
+ "grade_error": null
+}

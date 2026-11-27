@@ -1,0 +1,1 @@
+spec-agent: finish after 49 steps, $2.7599

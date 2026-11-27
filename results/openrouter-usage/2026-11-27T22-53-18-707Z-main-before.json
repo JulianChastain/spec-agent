@@ -1,0 +1,11 @@
+{
+ "label": "main-before",
+ "takenAt": "2026-11-27T22:53:18.707Z",
+ "usage": 9.81644745,
+ "usage_daily": 9.81644745,
+ "usage_weekly": 9.81644745,
+ "usage_monthly": 9.81644745,
+ "limit": 65,
+ "limit_remaining": 55.18355255,
+ "is_free_tier": false
+}

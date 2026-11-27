@@ -1,0 +1,73 @@
+{
+ "id": "spec-agent-astra-6-2-python-2h-r1",
+ "agent": "spec-agent",
+ "model": "openrouter:openai/gpt-6.2-astra",
+ "tag": "astra-6-2",
+ "agent_args": "",
+ "language": "python",
+ "budget": "2h",
+ "budget_s": 7200,
+ "run": 1,
+ "cap_usd": 6.5,
+ "wall_s": 996.1,
+ "cost_usd": 2.7599,
+ "cost_source": "reported per call by OpenRouter (usage.cost), summed by spec-agent",
+ "stop_reason": "agent finished",
+ "image": "minicore-run:spec-agent-astra-6-2-python-2h-r1",
+ "files": [
+  "./tests/generative.py",
+  "./tests/run.py",
+  "./tests/test.py",
+  "./NOTES.md",
+  "./mcfast.py",
+  "./README.md",
+  "./minicore",
+  "./mcvm.py"
+ ],
+ "score": 1.0,
+ "components": {
+  "suite": {
+   "passed": 344,
+   "total": 344,
+   "rate": 1.0
+  },
+  "generated": {
+   "passed": 2000,
+   "total": 2000,
+   "rate": 1.0
+  },
+  "typecheck": {
+   "passed": 400,
+   "total": 400,
+   "rate": 1.0
+  },
+  "resource": {
+   "passed": 17,
+   "total": 17,
+   "rate": 1.0
+  }
+ },
+ "tiers": {
+  "1": {
+   "passed": 581,
+   "total": 581,
+   "rate": 1.0
+  },
+  "2": {
+   "passed": 451,
+   "total": 451,
+   "rate": 1.0
+  },
+  "3": {
+   "passed": 1107,
+   "total": 1107,
+   "rate": 1.0
+  },
+  "4": {
+   "passed": 622,
+   "total": 622,
+   "rate": 1.0
+  }
+ },
+ "grade_error": null
+}
