@@ -14,12 +14,12 @@ About 1,000 lines in `src/`. [WALKTHROUGH.md](WALKTHROUGH.md) is the guided tour
 
 ```sh
 npm ci && npm test && npm run build
-export ANTHROPIC_API_KEY=...
-node dist/spec-agent.mjs --model anthropic:claude-opus-5-5 --workspace ./ws \
+export OPENROUTER_API_KEY=...    # or ANTHROPIC_API_KEY with --model anthropic:claude-opus-5-5
+node dist/spec-agent.mjs --model openrouter:anthropic/claude-opus-5.5 --workspace ./ws \
   --prompt-file TASK.md --pin spec/SPEC.md --budget-usd 5 --time-budget-s 3600
 ```
 
-Models are `provider:model-id`, with provider `openai`, `anthropic`, `google`, or `mock` (`mock:stub`, a scripted zero-cost model for testing the pipeline). A model must have a price in `src/pricing.ts` before it can run.
+Models are `provider:model-id`, with provider `openai`, `anthropic`, `google`, `openrouter`, or `mock` (`mock:stub`, a scripted zero-cost model for testing the pipeline). OpenRouter models are `openrouter:<vendor>/<model>`, e.g. `openrouter:google/gemini-4-carbon`. Each is pinned to its vendor's first-party endpoint, and billed at the cost OpenRouter reports per call. A model must have a price in `src/pricing.ts` before it can run.
 
 | Flag | Default | |
 | --- | --- | --- |
@@ -39,11 +39,16 @@ Models are `provider:model-id`, with provider `openai`, `anthropic`, `google`, o
 
 ## Experiments
 
+The runs in [WRITEUP.md](WRITEUP.md) all went through OpenRouter (`experiments.json`), with one `OPENROUTER_API_KEY`.
+
 ```sh
-cp .env.example .env    # keys + MAX_TOTAL_USD
-npx tsx scripts/experiment.ts smoke    # then: main
-npx tsx scripts/collect.ts             # copy results here, redacting secrets
-npx tsx scripts/report.ts --write      # regenerate every table in WRITEUP.md
+cp .env.example .env                       # OPENROUTER_API_KEY + MAX_TOTAL_USD
+npm run build                              # the harness copies dist/ into the sandbox
+npx tsx scripts/openrouter-probe.ts        # optional, ~$0.13: cached tokens + billed cost per model
+npx tsx scripts/experiment.ts smoke        # then: main
+npx tsx scripts/collect.ts                 # copy results here, redacting secrets
+npx tsx scripts/check-secrets.ts           # fails if the key appears anywhere outside .env
+npx tsx scripts/report.ts --write          # regenerate every table in WRITEUP.md
 ```
 
-`experiment.ts` runs each phase through replicate-lang's harness (`runs/run_agent.py`). The harness provides the sandbox, the egress proxy, the dollar cap, freeze-then-grade, and the grade. Before each start, the script checks that the run can't push total spend past `MAX_TOTAL_USD`.
+`experiment.ts` runs each phase through replicate-lang's harness (`runs/run_agent.py`). The harness provides the sandbox, the egress proxy (which allows `openrouter.ai`), the dollar cap, freeze-then-grade, and the grade. Before each start, the script checks that the run can't push total spend past `MAX_TOTAL_USD`. Around each phase it snapshots the key's spend (`results/openrouter-usage/`) and OpenRouter's listed prices (`results/openrouter-prices/`). The report then checks the per-call costs against both. [DECISIONS.md](DECISIONS.md#routing-through-openrouter-2026-11-27) explains what routing through OpenRouter changes.
