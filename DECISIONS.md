@@ -97,3 +97,61 @@ Choices made while building and running spec-agent, with the reason for each. Re
 - **The cap binds before the clock.** $6.50 is a small budget for a 2-hour run on a frontier model. I expect at least the OpenAI and Anthropic runs to stop on the dollar cap well before 2 hours. That is a property of the budget, and the results report stop reasons for that reason.
 - **Ablation model: Gemini 4 Carbon.** It is the cheapest per token of the three, so it gets the most steps under the cap. That makes its runs the most likely to cross the compaction threshold, more than once, which the ablation needs. The "compaction on" arm is the two main-matrix Carbon runs, with identical settings, so no runs are duplicated.
 - **Concurrency 4.** The four runs of each batch start 20 s apart, because the harness creates its network and proxy on first use.
+
+## Routing through OpenRouter (2026-11-27)
+
+This supersedes the direct-API setup above for every run in WRITEUP.md. The only key available was an OpenRouter key, so all three vendors' models go through OpenRouter. The agent can still use the direct APIs; nothing above was removed.
+
+- **The provider is `@openrouter/ai-sdk-provider@3.1.0`, OpenRouter's official AI SDK provider.** Its peer dependencies are `ai ^7.0.0` and `zod ^3.25.76 || ^4.1.8`. Both match the installed `ai@7.0.183` and `zod@4.6.7`, so `@ai-sdk/openai-compatible` wasn't needed. The version is pinned exactly, like the rest of `package.json`.
+- **Model strings are `openrouter:<vendor>/<model>`.** `parseModel()` keeps the vendor (`anthropic`, `openai`, `google`). Both the cache overlay and the default compaction model depend on the vendor, not on who carries the request.
+- **Slugs, from `GET https://openrouter.ai/api/v1/models` on 2026-11-27.** All six models are listed; none needed a substitute. Anthropic's slugs use a dot (`claude-opus-5.5`), not the dash of Anthropic's own ids.
+
+  | Model | OpenRouter slug | Compaction model |
+  | --- | --- | --- |
+  | GPT-6.2 Astra | `openai/gpt-6.2-astra` | `openai/gpt-6-luna` |
+  | Claude Opus 5.5 | `anthropic/claude-opus-5.5` | `anthropic/claude-haiku-5.5` |
+  | Gemini 4 Carbon | `google/gemini-4-carbon` | `google/gemini-3.5-flash-lite` |
+
+- **Each vendor is pinned to its own first-party, standard-tier endpoint.** The settings are `provider: { only: [<upstream>], allow_fallbacks: false, require_parameters: true }`, with upstream `openai`, `anthropic` or `google-ai-studio` (`OPENROUTER_UPSTREAM` in `src/providers.ts`). OpenRouter would otherwise load-balance each model across hosts: Astra also runs on Azure, Bedrock and Vertex, and Opus on Bedrock, Vertex, Azure and Claude Platform on AWS. Prices match across those hosts, but latency and cache state don't. Every vendor also has `/fast`, `/flex` or `/priority` endpoints at 0.5× to 3× the standard price. OpenRouter's provider-selection docs say a base slug "does not by itself opt into a service tier endpoint". The probe confirms it: every call was served by the first-party host, and every billed cost matched the standard price exactly. Each call's `model_call` event logs the host that served it (`upstream`), and the report lists the hosts per model.
+- **Anthropic caching through OpenRouter: the same two breakpoints, in OpenRouter's namespace.** `withCacheBreakpoints()` now applies when the *vendor* is `anthropic`. Through OpenRouter it sets `providerOptions.openrouter.cacheControl`. The provider sends that as a `cache_control: {type: "ephemeral"}` block on the message, which is the explicit per-block mode in OpenRouter's prompt-caching docs. A test runs the real provider against a stubbed `fetch` and checks that exactly two `cache_control` blocks are in the HTTP body. Gemini and OpenAI models get no breakpoints, as before. They rely on implicit caching.
+- **Cost: OpenRouter's own figure is what a run is metered on.** Every OpenRouter response carries `usage.cost`, the amount billed for that call, and the provider exposes it as `providerMetadata.openrouter.usage.cost`. Each `model_call` event records three fields:
+  - `costUsdReported`, OpenRouter's figure;
+  - `costUsdPriced`, from `src/pricing.ts`;
+  - `costUsd`, the reported figure when there is one, else the priced one.
+
+  The harness meter and the agent's own budget both sum `costUsd`, so the hard stops track the actual bill. The price table still drives the pre-call estimate and the cross-check.
+- **Prices.** `src/pricing.ts` has an `openrouter:` entry per model, copied from the pinned endpoint's listing, with the URL beside it. `scripts/openrouter-prices.ts` saves the raw listing to `results/openrouter-prices/`. `experiment.ts` runs it before and after each phase, so the prices on each run date are recorded, not assumed. On 2026-11-27, OpenRouter's prices equal the direct prices above for all six models, with two differences:
+  - **OpenAI cache writes are billed at 1.25× input** ($10/1M for Astra). OpenAI's own page bills none. OpenRouter reports `cache_write_tokens` for these models, and the probe's first Astra call wrote 5,207 tokens at that rate. So an OpenAI run through OpenRouter costs somewhat more than the same run direct.
+  - **Gemini 4 Carbon is $2 / $0.10 / $10** (input / cached / output), the same as Google's direct price through 2026-11-30. The runs start on 2026-11-27. Whether OpenRouter follows Google's 2026-12-01 doubling doesn't affect them as long as they finish before then. The dated snapshots and the per-call billed costs would show it if it did.
+- **Cross-checks.** `scripts/report.ts` compares three things:
+  - per run: the priced total, the reported total and the harness meter;
+  - per phase: the meters' sum against the key's own spend over the phase. `GET /api/v1/key` `usage` is snapshotted before and after by `scripts/openrouter-usage.ts`.
+
+  The account's credit balance (`GET /api/v1/credits`) needs a management key, which I don't have. The key's cumulative usage is the closest figure available.
+- **OpenRouter's usage counter lags by a minute or two.** In the probe, one minute after the last call, the key's usage was $0.1016 against $0.1247 of reported per-call cost. The gap was exactly the last six (Gemini) calls. Three minutes later it was $0.124685, matching to the sixth decimal. `experiment.ts` therefore waits 3 minutes after a phase before the "after" snapshot.
+- **The probe (`scripts/openrouter-probe.ts`; results in `results/openrouter-probe/`)** sends the agent's own call shape to all six models:
+  - the spec as the pinned first message;
+  - then three calls that share that prefix;
+  - with `withCacheBreakpoints()` applied as the loop applies it.
+
+  On 2026-11-27 it cost $0.125, outside the experiment budget. Cache reads on the second call:
+
+  | Model | Prompt tokens | Read from cache | Written | Priced = reported? |
+  | --- | ---: | ---: | ---: | --- |
+  | Astra | 5,242 | 5,207 (99%) | 5,207 on call 1 | yes, all 3 calls |
+  | Luna | 5,265 | 5,207 (99%) | 5,207 on call 1 | yes |
+  | Opus 5.5 | 7,521 | 7,486 (99.5%) | 7,486 on call 1 | yes |
+  | Haiku 5.5 | 7,588 | 7,486 (99%) | 7,486 on call 1 | yes |
+  | Carbon | 5,208 | 3,128 (60%) | none reported | yes |
+  | Flash Lite | 5,217 | 2,030 (39%) | none reported | yes |
+
+  **Every model reports cache reads through OpenRouter.** But Gemini's implicit caching served only part of an identical 5K-token prefix, while OpenAI's and Anthropic's served all of it. I didn't add explicit Gemini breakpoints. OpenRouter's docs contradict themselves on whether Gemini needs them, and explicit Gemini caching has a storage charge the direct design deliberately avoided. Whether the partial hits persist on long contexts is in WRITEUP.md's telemetry table, as the cache-read share per model.
+- **Keys.** `run_shell` already dropped `*API_KEY*` variables. It now also drops anything named `*OPENROUTER*`, and any variable whose *value* contains a credential's value (a key copied under an innocent name). `collect.ts` redacts every `.env` credential, as before, and also any string shaped like an OpenRouter key (`sk-or-…`), whether or not it's in `.env`. `scripts/check-secrets.ts` scans both repos and replicate-lang's run results for the key value and the key shape, printing file names only. I ran it before every commit and every phase. The shell's `grep` in my environment skips dotfiles, so I didn't rely on it for this check.
+- **Harness** (replicate-lang commit "spec-agent adapter: pass OPENROUTER_API_KEY … (grading untouched)"). `openrouter:*` models get `OPENROUTER_API_KEY`, and `openrouter.ai` joins the proxy allowlist. `cost_source` in `result.json` says the cost is OpenRouter's. No grader or grading file changed. From inside the sandbox network, `openrouter.ai` answered and example.com and pypi.org were still refused.
+
+### What routing through OpenRouter changes
+
+- **TTFT and latency are not comparable to direct-API numbers.** Every call takes an extra hop through OpenRouter, which adds its own queueing and routing time. The telemetry measures agent → OpenRouter → vendor → back, so it is fine for comparing these three models with each other through the same path. It is not a measure of any vendor's own API latency.
+- **Routing inside OpenRouter could vary; I pinned it.** Each vendor is pinned to one first-party host with fallbacks off (above), so a run never silently moves to Bedrock or Vertex mid-run. The cost of that choice: if the pinned host is down, the call fails instead of falling back. The loop then retries, and stops after three consecutive errors. Failed calls are counted per run in the report.
+- **Caching may behave differently from the direct APIs.** OpenAI writes are billed here and not there. Gemini's implicit hit rate was partial in the probe. OpenRouter's own docs disagree about Gemini. The report gives the measured cache-read share per model rather than assuming the direct APIs' behaviour.
+- **Prices are OpenRouter's.** They matched the direct prices on the run dates, except for OpenAI cache writes. Each run is metered on OpenRouter's billed figure, which is what the account actually paid.
