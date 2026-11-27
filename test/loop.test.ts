@@ -100,6 +100,16 @@ describe("budget stops", () => {
     expect(model.doStreamCalls.length).toBeGreaterThan(0);
     expect(model.doStreamCalls.length).toBeLessThan(10);
   });
+
+  it("doesn't crash when the time left isn't a whole number of milliseconds", async () => {
+    // The Carbon smoke run crashed on a delay of 323943.99999999994 ms:
+    // AbortSignal.timeout() only takes integers. 32,041 ms into a 600 s
+    // budget, (600 - 32.041) * 1000 = 567959.0000000001.
+    let first = true;
+    const now = () => (first ? ((first = false), 0) : 32_041);
+    const { result } = await run(config({ workspace: workspace(), timeBudgetS: 600, maxSteps: 2 }), loopForever(), { now });
+    expect(result.stopReason).toBe("step limit");
+  });
 });
 
 describe("pricing", () => {

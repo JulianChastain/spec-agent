@@ -160,7 +160,8 @@ export async function runAgent(cfg: Config, deps: AgentDeps): Promise<RunResult>
     }
 
     // Never let a call outlive the wall-clock budget.
-    const abort = AbortSignal.timeout(Math.max(1000, (cfg.timeBudgetS - elapsedS()) * 1000));
+    // AbortSignal.timeout() throws on a fractional delay, which float error produces.
+    const abort = AbortSignal.timeout(Math.max(1000, Math.floor((cfg.timeBudgetS - elapsedS()) * 1000)));
     let r: CallResult;
     try {
       r = await callModel({
