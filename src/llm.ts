@@ -26,6 +26,18 @@ export interface CallOptions {
   purpose: ModelCallEvent["purpose"];
 }
 
+/** OpenRouter's billed cost for the call (`usage.cost`, USD), if it sent one. */
+export function reportedCost(meta: unknown): number | null {
+  const c = (meta as any)?.openrouter?.usage?.cost;
+  return typeof c === "number" && Number.isFinite(c) ? c : null;
+}
+
+/** Which upstream OpenRouter routed the call to, e.g. "Anthropic". */
+export function upstreamOf(meta: unknown): string | null {
+  const p = (meta as any)?.openrouter?.provider;
+  return typeof p === "string" ? p : null;
+}
+
 const FIRST_TOKEN = new Set(["text-delta", "reasoning-delta", "tool-input-start", "tool-call"]);
 
 export async function callModel(o: CallOptions): Promise<CallResult> {
@@ -48,8 +60,8 @@ export async function callModel(o: CallOptions): Promise<CallResult> {
   }
   if (streamError !== undefined) throw streamError;
 
-  const [usage, finishReason, toolCalls, responseMessages, text] = await Promise.all([
-    result.usage, result.finishReason, result.toolCalls, result.responseMessages, result.text,
+  const [usage, finishReason, toolCalls, responseMessages, text, providerMetadata] = await Promise.all([
+    result.usage, result.finishReason, result.toolCalls, result.responseMessages, result.text, result.providerMetadata,
   ]);
   const tokens = {
     inputTokens: usage.inputTokens ?? 0,
@@ -57,6 +69,8 @@ export async function callModel(o: CallOptions): Promise<CallResult> {
     cacheWriteTokens: usage.inputTokenDetails?.cacheWriteTokens ?? 0,
     outputTokens: usage.outputTokens ?? 0,
   };
+  const priced = costOf(o.ref.key, tokens);
+  const billed = reportedCost(providerMetadata);
   const event: ModelCallEvent = {
     type: "model_call",
     step: o.step,
@@ -65,7 +79,13 @@ export async function callModel(o: CallOptions): Promise<CallResult> {
     model: o.ref.id,
     ...tokens,
     reasoningTokens: usage.outputTokenDetails?.reasoningTokens ?? 0,
-    costUsd: costOf(o.ref.key, tokens),
+    // What the call cost: the provider's own figure when it reports one
+    // (OpenRouter does, per call), else our price table. Both are logged so
+    // the report can cross-check them.
+    costUsd: billed ?? priced,
+    costUsdPriced: priced,
+    costUsdReported: billed,
+    upstream: upstreamOf(providerMetadata),
     latencyMs: Math.round(performance.now() - started),
     ttftMs: firstTokenAt === null ? null : Math.round(firstTokenAt - started),
     finishReason,

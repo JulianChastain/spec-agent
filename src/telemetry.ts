@@ -29,7 +29,10 @@ export type ModelCallEvent = {
   cacheWriteTokens: number;
   outputTokens: number;
   reasoningTokens: number;
-  costUsd: number;
+  costUsd: number; // costUsdReported when there is one, else costUsdPriced
+  costUsdPriced: number; // from src/pricing.ts
+  costUsdReported: number | null; // the provider's own figure (OpenRouter usage.cost)
+  upstream: string | null; // the host OpenRouter routed to; null for direct APIs
   latencyMs: number;
   ttftMs: number | null; // null when no token arrived (e.g. the call failed)
   finishReason: string;

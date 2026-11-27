@@ -2,7 +2,7 @@
 // README.md lists every flag. Prints the JSONL event stream on stdout.
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CHEAP_MODEL, parseConfig } from "./config.ts";
+import { cheapModelFor, parseConfig } from "./config.ts";
 import { runAgent } from "./loop.ts";
 import { createModel, parseModel } from "./providers.ts";
 import { Telemetry } from "./telemetry.ts";
@@ -21,7 +21,7 @@ export function systemPromptFor(provider: string): string {
 async function main() {
   const cfg = parseConfig(process.argv.slice(2));
   const mainRef = parseModel(cfg.model);
-  const compRef = parseModel(cfg.compactionModel ?? CHEAP_MODEL[mainRef.provider]!);
+  const compRef = parseModel(cfg.compactionModel ?? cheapModelFor(mainRef));
   const telemetry = new Telemetry({ stdout: true, file: cfg.logFile, keepInMemory: false });
   const result = await runAgent(cfg, {
     main: { ref: mainRef, model: createModel(mainRef) },

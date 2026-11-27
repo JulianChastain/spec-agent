@@ -11,6 +11,19 @@ export const CHEAP_MODEL: Record<string, string> = {
   google: "google:gemini-3.5-flash-lite",
   mock: "mock:stub",
 };
+// Through OpenRouter, the cheap model is the same vendor's, also via OpenRouter.
+export const OPENROUTER_CHEAP_MODEL: Record<string, string> = {
+  openai: "openrouter:openai/gpt-6-luna",
+  anthropic: "openrouter:anthropic/claude-haiku-5.5",
+  google: "openrouter:google/gemini-3.5-flash-lite",
+};
+
+/** The default compaction model for a main model: same provider, same vendor. */
+export function cheapModelFor(ref: { provider: string; vendor: string; key: string }): string {
+  const m = ref.provider === "openrouter" ? OPENROUTER_CHEAP_MODEL[ref.vendor] : CHEAP_MODEL[ref.provider];
+  if (!m) throw new Error(`no default compaction model for ${ref.key}; pass --compaction-model`);
+  return m;
+}
 
 export const ConfigSchema = z.object({
   model: z.string(),
