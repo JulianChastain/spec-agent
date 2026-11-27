@@ -198,3 +198,8 @@ The gate is `scripts/smoke-check.ts`. Every check must pass for all three smoke 
 - **Scores:** Astra 100% (stopped on the dollar budget) and Opus 100% (`finish`). Carbon scored **0%**: it stopped on its own dollar budget after 4 calls and $0.32. Its next-call estimate is the largest output so far at the output price, up to 32K tokens × $10/1M, and that no longer fit in the $0.58 left. The check counts this as a sensible stop.
 - Carbon got 100% in r2 and 0% in r3 under identical settings. Smoke runs aren't part of the results, but this is a fair warning about n=2 in the main matrix.
 - **Smoke spend:** $2.85 by the harness meters across the nine runs. The key's own spend was $3.24, because attempt 1's three unbilled drops were never metered and attempt 2's two weren't found in time. The key figure is the true one.
+
+## Main matrix (started 2026-11-27 22:35 UTC)
+
+- **The spend limits as found vs. the brief.** `.env` had `MAX_TOTAL_USD=15`, not the 60 in the plan, and the OpenRouter key had a $50 limit. With 15, the spend guard would have started only one of the eight main runs. I didn't change either value on my own. I asked, and the owner raised the key's limit (now $65) and approved `MAX_TOTAL_USD=60`. The guard stays active, and the caps, budgets, models and language are unchanged.
+- **Run despite the ceiling.** The owner chose to run the matrix as designed, knowing the smoke tests put two of the three models at 100% in 10 minutes.
