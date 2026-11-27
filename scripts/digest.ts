@@ -18,8 +18,13 @@ export function digest(events: any[], o: { from?: number; to?: number; full?: bo
   const out: string[] = [];
   const inRange = (step: unknown) => typeof step !== "number" || ((o.from ?? 0) <= step && step <= (o.to ?? Infinity));
   for (const e of events) {
-    if (!inRange(e.step)) continue;
-    const at = `[step ${e.step ?? "-"}, t=${((e.t ?? 0) / 60000).toFixed(1)}m]`;
+    // The loop counts a step before it logs the tool results (or nudge) that
+    // answer it, so those messages carry the next step's number. Label them
+    // with the step of the call they answer, so "step N" means one call.
+    const answers = e.type === "message" && (e.message?.role === "tool" || e.message?.role === "user");
+    const step = answers && typeof e.step === "number" ? e.step - 1 : e.step;
+    if (!inRange(step)) continue;
+    const at = `[step ${step ?? "-"}, t=${((e.t ?? 0) / 60000).toFixed(1)}m]`;
     if (e.type === "model_call") {
       out.push(`${at} ${e.failed ? "FAILED " : ""}call (${e.purpose}): in ${e.inputTokens} (cached ${e.cacheReadTokens}) out ${e.outputTokens} $${Number(e.costUsd).toFixed(4)} -> ${(e.toolCalls ?? []).join(", ") || "no tools"}`);
     } else if (e.type === "message" && e.message?.role === "assistant" && Array.isArray(e.message.content)) {
