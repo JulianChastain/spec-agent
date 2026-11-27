@@ -10,7 +10,7 @@ import {
   buildSummaryBlock, estimateTokens, readNotes, renderForSummary, splitPoint, toMessages, workspaceIndex,
   type ConversationState,
 } from "./compaction.ts";
-import { callModel, type CallResult } from "./llm.ts";
+import { callModel, describeError, isTransportError, type CallResult, type FailedCallBill } from "./llm.ts";
 import { priceFor } from "./pricing.ts";
 import { withCacheBreakpoints, type ModelRef } from "./providers.ts";
 import type { Telemetry } from "./telemetry.ts";
@@ -37,9 +37,14 @@ export interface AgentDeps {
   telemetry: Telemetry;
   now?: () => number; // injectable clock, for the budget tests
   retryDelayMs?: number; // base backoff after a failed call (tests set 0)
+  // What a failed call was billed, if the provider can say (OpenRouter can).
+  billFailedCall?: (ref: ModelRef, error: unknown) => Promise<FailedCallBill | null>;
 }
 
 const MAX_CONSECUTIVE_ERRORS = 3;
+// Dropped connections mid-stream are transient and not the model's doing;
+// they get a longer leash before the run gives up (DECISIONS.md, smoke tests).
+const MAX_CONSECUTIVE_TRANSPORT_ERRORS = 6;
 const MAX_NUDGES = 3; // consecutive replies without a tool call before we give up
 // Output tokens reserved for the next call before any call has been seen.
 const DEFAULT_OUTPUT_ESTIMATE = 2_000;
@@ -71,7 +76,8 @@ export async function runAgent(cfg: Config, deps: AgentDeps): Promise<RunResult>
   let steps = 0;
   let spent = 0;
   let compactions = 0;
-  let errors = 0;
+  let errors = 0; // consecutive failed calls, other than dropped connections
+  let transportErrors = 0; // consecutive dropped connections
   let nudges = 0;
   let lastCallCost = 0;
   let maxOutputSeen = DEFAULT_OUTPUT_ESTIMATE;
@@ -109,6 +115,26 @@ export async function runAgent(cfg: Config, deps: AgentDeps): Promise<RunResult>
   const statusLine = () =>
     `[status: ${fmtDuration(cfg.timeBudgetS - elapsedS())} left, $${Math.max(0, cfg.budgetUsd - spent).toFixed(2)} of $${cfg.budgetUsd.toFixed(2)} left, ${steps}/${cfg.maxSteps} steps used]`;
 
+  /** Log a failed call, and bill it if the provider says what it cost. */
+  async function recordFailure(ref: ModelRef, purpose: "main" | "compaction", e: unknown): Promise<void> {
+    const bill = deps.billFailedCall ? await deps.billFailedCall(ref, e).catch(() => null) : null;
+    if (bill) {
+      spent += bill.costUsd;
+      log.emit({
+        type: "model_call", step: steps, purpose, provider: ref.provider, model: ref.id,
+        inputTokens: bill.inputTokens, cacheReadTokens: bill.cacheReadTokens, cacheWriteTokens: 0, outputTokens: bill.outputTokens,
+        reasoningTokens: 0,
+        // No usage came back, so there is nothing of ours to price: both cost
+        // fields are OpenRouter's billed figure for the generation.
+        costUsd: bill.costUsd, costUsdPriced: bill.costUsd, costUsdReported: bill.costUsd,
+        upstream: bill.upstream, latencyMs: 0, ttftMs: null, finishReason: "error", toolCalls: [],
+        failed: true, generationId: bill.generationId,
+      });
+    }
+    log.emit({ type: "model_call_error", step: steps, purpose, error: describeError(e), transient: isTransportError(e),
+      billedUsd: bill?.costUsd ?? null, generationId: bill?.generationId ?? null });
+  }
+
   async function compact(): Promise<void> {
     const cut = splitPoint(state.history, cfg.keepRecent);
     if (cut === 0) {
@@ -135,7 +161,7 @@ export async function runAgent(cfg: Config, deps: AgentDeps): Promise<RunResult>
     } catch (e) {
       // A failed summary shouldn't kill the run: keep the clipped transcript's
       // tail instead, which is worse but loses nothing recent.
-      log.emit({ type: "model_call_error", step: steps, purpose: "compaction", error: String(e) });
+      await recordFailure(deps.compactor.ref, "compaction", e);
       summary = "(The summarizer failed; this is the end of the raw transcript.)\n" + transcript.slice(-20_000);
     }
     compactions++;
@@ -176,14 +202,17 @@ export async function runAgent(cfg: Config, deps: AgentDeps): Promise<RunResult>
       });
     } catch (e) {
       if (abort.aborted) { stop = "time budget"; break; }
-      // Failed calls are logged but not priced: the SDK gives no usage for
-      // them. DECISIONS.md discusses what that can miss.
-      log.emit({ type: "model_call_error", step: steps, purpose: "main", error: e instanceof Error ? `${e.name}: ${e.message}` : String(e) });
-      if (++errors >= MAX_CONSECUTIVE_ERRORS) { stop = "model error"; break; }
-      await new Promise((res) => setTimeout(res, (deps.retryDelayMs ?? 5_000) * errors));
+      // The SDK gives no usage for a failed call; recordFailure() asks the
+      // provider what it billed, where it can. DECISIONS.md has the rest.
+      await recordFailure(deps.main.ref, "main", e);
+      const transient = isTransportError(e);
+      if (transient) transportErrors++; else errors++;
+      if (errors >= MAX_CONSECUTIVE_ERRORS || transportErrors >= MAX_CONSECUTIVE_TRANSPORT_ERRORS) { stop = "model error"; break; }
+      await new Promise((res) => setTimeout(res, Math.min(30_000, (deps.retryDelayMs ?? 5_000) * (errors + transportErrors))));
       continue;
     }
     errors = 0;
+    transportErrors = 0;
     spent += r.event.costUsd;
     lastCallCost = r.event.costUsd;
     maxOutputSeen = Math.max(maxOutputSeen, r.event.outputTokens);

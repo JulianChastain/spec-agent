@@ -4,7 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cheapModelFor, parseConfig } from "./config.ts";
 import { runAgent } from "./loop.ts";
-import { createModel, parseModel } from "./providers.ts";
+import { generationIdOf, lookupOpenRouterBill } from "./llm.ts";
+import { createModel, parseModel, type ModelRef } from "./providers.ts";
 import { Telemetry } from "./telemetry.ts";
 
 // Prompts live in ../prompts relative to this file. That holds both for
@@ -18,6 +19,12 @@ export function systemPromptFor(provider: string): string {
   return existsSync(overlay) ? `${base}\n\n${readFileSync(overlay, "utf8")}` : base;
 }
 
+/** OpenRouter can say what a failed call cost; the direct APIs can't. */
+async function billFailedCall(ref: ModelRef, error: unknown) {
+  const id = ref.provider === "openrouter" ? generationIdOf(error) : null;
+  return id && process.env.OPENROUTER_API_KEY ? lookupOpenRouterBill(id, process.env.OPENROUTER_API_KEY) : null;
+}
+
 async function main() {
   const cfg = parseConfig(process.argv.slice(2));
   const mainRef = parseModel(cfg.model);
@@ -29,6 +36,7 @@ async function main() {
     systemPrompt: systemPromptFor(mainRef.provider),
     compactionPrompt: readFileSync(promptPath("compaction.md"), "utf8"),
     telemetry,
+    billFailedCall,
   });
   process.stderr.write(`spec-agent: ${result.stopReason} after ${result.steps} steps, $${result.costUsd.toFixed(4)}\n`);
 }

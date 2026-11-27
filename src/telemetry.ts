@@ -38,6 +38,8 @@ export type ModelCallEvent = {
   finishReason: string;
   toolCalls: string[];
   error?: string;
+  failed?: boolean; // the call failed mid-stream but was billed; tokens and cost are OpenRouter's
+  generationId?: string;
 };
 
 export class Telemetry {

@@ -63,7 +63,7 @@ export function config(over: Partial<Config> & { workspace: string }): Config {
  * main model is billed at, so dollar budgets can be tested with a mock.
  */
 export async function run(cfg: Config, main: MockLanguageModelV4, opts: {
-  compactor?: MockLanguageModelV4; priceAs?: string; now?: () => number;
+  compactor?: MockLanguageModelV4; priceAs?: string; now?: () => number; billFailedCall?: AgentDeps["billFailedCall"];
 } = {}) {
   const telemetry = new Telemetry({ stdout: false });
   const deps: AgentDeps = {
@@ -74,6 +74,7 @@ export async function run(cfg: Config, main: MockLanguageModelV4, opts: {
     telemetry,
     now: opts.now,
     retryDelayMs: 0,
+    billFailedCall: opts.billFailedCall,
   };
   const result = await runAgent(cfg, deps);
   return { result, telemetry };

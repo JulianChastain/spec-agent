@@ -52,7 +52,7 @@ describe("report", () => {
     expect(r.mainCacheReadTokens / r.mainInputTokens).toBeCloseTo(600 / 6000, 10);
     expect(r.peakContextTokens).toBe(5050);
     expect(r.nudges).toBe(1);
-    expect(buildSections([r]).costcheck).toContain("| or-python-10m-r1 | $0.2990 | $0.1000 | +199.00% | 1 | $0.3000 | 0 |");
+    expect(buildSections([r]).costcheck).toContain("| or-python-10m-r1 | $0.2990 | $0.1000 | +199.00% | 1 | $0.3000 | 0 | 0 ($0.0000) |");
   });
 
   it("pairs each <phase>-before usage snapshot with the next <phase>-after", () => {

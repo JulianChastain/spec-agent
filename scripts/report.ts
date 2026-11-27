@@ -30,6 +30,8 @@ export interface Run {
   costPriced: number; // sum of our price-table figure (costUsdPriced; costUsd for older runs)
   costReported: number; // sum of the provider's own per-call figure, where it sent one
   callsWithoutReportedCost: number;
+  failedBilledCalls: number; // calls that failed mid-stream but were billed (cost from GET /api/v1/generation)
+  failedBilledUsd: number;
   upstreams: string[]; // hosts OpenRouter routed to (empty for direct APIs)
   inputTokens: number; // all calls, including cached
   cacheReadTokens: number;
@@ -66,7 +68,9 @@ export function loadRun(dir: string): Run | null {
   const r = JSON.parse(readFileSync(resultFile, "utf8"));
   const events = readJsonl(path.join(dir, "transcript.jsonl"));
   const calls = events.filter((e) => e.type === "model_call");
-  const main = calls.filter((e) => e.purpose === "main");
+  // A billed failed call counts toward cost but isn't a step, and has no latency.
+  const main = calls.filter((e) => e.purpose === "main" && !e.failed);
+  const failed = calls.filter((e) => e.failed);
   const final = events.findLast((e) => e.type === "result");
   const tiers: Run["tiers"] = {};
   for (const [t, v] of Object.entries<any>(r.tiers ?? {})) tiers[t] = { passed: v.passed, total: v.total };
@@ -100,7 +104,9 @@ export function loadRun(dir: string): Run | null {
     nudges: events.filter((e) => e.type === "message" && e.message?.role === "user"
       && JSON.stringify(e.message.content).includes("You replied without calling a tool")).length,
     mainCalls: main.length,
-    compactionCalls: calls.length - main.length,
+    compactionCalls: calls.filter((e) => e.purpose === "compaction" && !e.failed).length,
+    failedBilledCalls: failed.length,
+    failedBilledUsd: sum(failed, (e) => e.costUsd),
     latenciesMs: main.map((e) => e.latencyMs),
     ttftsMs: main.map((e) => e.ttftMs).filter((x: number | null) => x !== null),
     wallS: r.wall_s,
@@ -245,8 +251,8 @@ const diff = (a: number, b: number) => (b ? `${(100 * (a - b) / b >= 0 ? "+" : "
 
 function costCheckTable(all: Run[], snaps: UsageSnapshot[]): string {
   const rows = all.map((r) => `| ${short(r)} | ${usd4(r.costPriced)} | ${usd4(r.costReported)} | ${diff(r.costPriced, r.costReported)} | `
-    + `${r.callsWithoutReportedCost} | ${usd4(r.costUsd)} | ${r.modelErrors} |`);
-  const runs = table("| Run | Priced (src/pricing.ts) | Reported by OpenRouter | Priced vs reported | Calls with no reported cost | Harness meter | Failed calls (unpriced) |", rows);
+    + `${r.callsWithoutReportedCost} | ${usd4(r.costUsd)} | ${r.modelErrors} | ${r.failedBilledCalls} (${usd4(r.failedBilledUsd)}) |`);
+  const runs = table("| Run | Priced (src/pricing.ts) | Reported by OpenRouter | Priced vs reported | Calls with no reported cost | Harness meter | Failed calls | of which billed (cost) |", rows);
   const deltas = usageDeltas(snaps);
   const phases = ["smoke", "main"].filter((p) => all.some((r) => PHASE_OF(r) === p)).map((p) => {
     const rs = all.filter((r) => PHASE_OF(r) === p);
