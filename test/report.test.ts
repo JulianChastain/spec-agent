@@ -63,4 +63,12 @@ describe("report", () => {
       snap("main-before", "2026-11-27T05", 3.0), // never finished: no window
     ])).toEqual({ smoke: { delta: 0.75, windows: 2 } });
   });
+
+  it("measures overlapping windows of one phase as their union", () => {
+    const snap = (label: string, takenAt: string, usage: number) => ({ label, takenAt, usage });
+    expect(usageDeltas([
+      snap("main-before", "T01", 10), snap("main-before", "T02", 12), // a re-run started mid-phase
+      snap("main-after", "T03", 30), snap("main-after", "T04", 41),
+    ])).toEqual({ main: { delta: 31, windows: 1 } });
+  });
 });

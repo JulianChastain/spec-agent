@@ -232,16 +232,24 @@ export interface UsageSnapshot { label: string; takenAt: string; usage: number }
 
 /** Spend on the key between each `<phase>-before` and the next `<phase>-after` snapshot. */
 export function usageDeltas(snaps: UsageSnapshot[]): Record<string, { delta: number; windows: number }> {
+  // Windows of one phase can overlap (a re-run started while the phase's
+  // first invocation was still going), so measure their union: spend accrues
+  // from the moment the first window of a group opens until all are closed.
   const out: Record<string, { delta: number; windows: number }> = {};
   const sorted = [...snaps].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
-  for (const [i, b] of sorted.entries()) {
-    const m = b.label.match(/^(.+)-before$/);
+  const open: Record<string, { depth: number; from: number }> = {};
+  for (const s of sorted) {
+    const m = s.label.match(/^(.+)-(before|after)$/);
     if (!m) continue;
-    const a = sorted.slice(i + 1).find((x) => x.label === `${m[1]}-after` || x.label === `${m[1]}-before`);
-    if (!a || a.label !== `${m[1]}-after`) continue;
-    const o = (out[m[1]!] ??= { delta: 0, windows: 0 });
-    o.delta += a.usage - b.usage;
-    o.windows++;
+    const [, phase, when] = m as unknown as [string, string, string];
+    const st = (open[phase] ??= { depth: 0, from: 0 });
+    if (when === "before") {
+      if (st.depth++ === 0) st.from = s.usage;
+    } else if (st.depth > 0 && --st.depth === 0) {
+      const o = (out[phase] ??= { delta: 0, windows: 0 });
+      o.delta += s.usage - st.from;
+      o.windows++;
+    }
   }
   return out;
 }

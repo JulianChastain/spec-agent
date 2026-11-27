@@ -32,6 +32,17 @@ export function loadEnvFile(file: string): Record<string, string> {
 
 export const PROVIDER_KEYS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_GENERATIVE_AI_API_KEY", "OPENROUTER_API_KEY"];
 
+/**
+ * The harness command line for one run. `--agent-args` must be passed as
+ * `--agent-args=VALUE`: as two words, argparse reads a value like
+ * `--no-compaction` as an option of its own and exits (the first main matrix
+ * attempt lost both ablation runs to this, before they started).
+ */
+export function harnessArgs(lang: string, phase: Pick<Phase, "budget" | "cap">, r: RunSpec): string[] {
+  return ["runs/run_agent.py", "spec-agent", lang, phase.budget, String(r.run),
+    "--cap", String(phase.cap), "--model", r.model, "--tag", r.tag, ...(r.agentArgs ? [`--agent-args=${r.agentArgs}`] : [])];
+}
+
 export const runId = (lang: string, budget: string, r: RunSpec) => `spec-agent-${r.tag}-${lang}-${budget}-r${r.run}`;
 
 /** Actual spend of every finished, non-mock spec-agent run. */
@@ -108,8 +119,7 @@ async function main() {
 
   const launch = (r: RunSpec) => {
     const id = runId(plan.lang, phase.budget, r);
-    const args = ["runs/run_agent.py", "spec-agent", plan.lang, phase.budget, String(r.run),
-      "--cap", String(phase.cap), "--model", r.model, "--tag", r.tag, ...(r.agentArgs ? ["--agent-args", r.agentArgs] : [])];
+    const args = harnessArgs(plan.lang, phase, r);
     console.log(`[${new Date().toISOString()}] start ${id}: python3 ${args.join(" ")}`);
     if (dryRun) return Promise.resolve();
     reserved.set(id, phase.cap + plan.overshootReserveUsd);
