@@ -1,0 +1,11 @@
+{
+ "label": "smoke-after",
+ "takenAt": "2026-11-27T22:31:51.442Z",
+ "usage": 3.36360775,
+ "usage_daily": 3.36360775,
+ "usage_weekly": 3.36360775,
+ "usage_monthly": 3.36360775,
+ "limit": 50,
+ "limit_remaining": 46.63639225,
+ "is_free_tier": false
+}

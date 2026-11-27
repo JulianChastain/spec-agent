@@ -1,0 +1,11 @@
+{
+ "label": "smoke-before",
+ "takenAt": "2026-11-27T22:04:22.859Z",
+ "usage": 1.10679665,
+ "usage_daily": 1.10679665,
+ "usage_weekly": 1.10679665,
+ "usage_monthly": 1.10679665,
+ "limit": 50,
+ "limit_remaining": 48.89320335,
+ "is_free_tier": false
+}

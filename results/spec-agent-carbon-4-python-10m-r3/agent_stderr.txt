@@ -1,0 +1,2 @@
+[openrouter] Some reasoning_details entries were removed because they were missing signatures. See https://github.com/OpenRouterTeam/ai-sdk-provider/issues/423 and https://github.com/OpenRouterTeam/ai-sdk-provider/issues/418 for more details.
+spec-agent: dollar budget after 4 steps, $0.3189

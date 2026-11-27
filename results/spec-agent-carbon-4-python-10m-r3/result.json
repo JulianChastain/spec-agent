@@ -1,0 +1,67 @@
+{
+ "id": "spec-agent-carbon-4-python-10m-r3",
+ "agent": "spec-agent",
+ "model": "openrouter:google/gemini-4-carbon",
+ "tag": "carbon-4",
+ "agent_args": "",
+ "language": "python",
+ "budget": "10m",
+ "budget_s": 600,
+ "run": 3,
+ "cap_usd": 0.6,
+ "wall_s": 371.3,
+ "cost_usd": 0.3189,
+ "cost_source": "reported per call by OpenRouter (usage.cost), summed by spec-agent",
+ "stop_reason": "agent finished",
+ "image": "minicore-run:spec-agent-carbon-4-python-10m-r3",
+ "files": [
+  "./mc.py",
+  "./NOTES.md"
+ ],
+ "score": 0.0,
+ "components": {
+  "suite": {
+   "passed": 0,
+   "total": 344,
+   "rate": 0.0
+  },
+  "generated": {
+   "passed": 0,
+   "total": 2000,
+   "rate": 0.0
+  },
+  "typecheck": {
+   "passed": 0,
+   "total": 400,
+   "rate": 0.0
+  },
+  "resource": {
+   "passed": 0,
+   "total": 17,
+   "rate": 0.0
+  }
+ },
+ "tiers": {
+  "1": {
+   "passed": 0,
+   "total": 581,
+   "rate": 0.0
+  },
+  "2": {
+   "passed": 0,
+   "total": 451,
+   "rate": 0.0
+  },
+  "3": {
+   "passed": 0,
+   "total": 1107,
+   "rate": 0.0
+  },
+  "4": {
+   "passed": 0,
+   "total": 622,
+   "rate": 0.0
+  }
+ },
+ "grade_error": null
+}

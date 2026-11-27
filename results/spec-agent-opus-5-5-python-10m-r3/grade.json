@@ -1,0 +1,109 @@
+{
+ "score": 1.0,
+ "components": {
+  "suite": {
+   "passed": 344,
+   "total": 344,
+   "rate": 1.0
+  },
+  "generated": {
+   "passed": 2000,
+   "total": 2000,
+   "rate": 1.0
+  },
+  "typecheck": {
+   "passed": 400,
+   "total": 400,
+   "rate": 1.0
+  },
+  "resource": {
+   "passed": 17,
+   "total": 17,
+   "rate": 1.0
+  }
+ },
+ "tiers": {
+  "1": {
+   "passed": 581,
+   "total": 581,
+   "rate": 1.0
+  },
+  "2": {
+   "passed": 451,
+   "total": 451,
+   "rate": 1.0
+  },
+  "3": {
+   "passed": 1107,
+   "total": 1107,
+   "rate": 1.0
+  },
+  "4": {
+   "passed": 622,
+   "total": 622,
+   "rate": 1.0
+  }
+ },
+ "cells": {
+  "generated/tier1": {
+   "passed": 432,
+   "total": 432
+  },
+  "generated/tier2": {
+   "passed": 347,
+   "total": 347
+  },
+  "generated/tier3": {
+   "passed": 734,
+   "total": 734
+  },
+  "generated/tier4": {
+   "passed": 487,
+   "total": 487
+  },
+  "resource/tier4": {
+   "passed": 17,
+   "total": 17
+  },
+  "suite/tier1": {
+   "passed": 120,
+   "total": 120
+  },
+  "suite/tier2": {
+   "passed": 83,
+   "total": 83
+  },
+  "suite/tier3": {
+   "passed": 112,
+   "total": 112
+  },
+  "suite/tier4": {
+   "passed": 29,
+   "total": 29
+  },
+  "typecheck/tier1": {
+   "passed": 29,
+   "total": 29
+  },
+  "typecheck/tier2": {
+   "passed": 21,
+   "total": 21
+  },
+  "typecheck/tier3": {
+   "passed": 261,
+   "total": 261
+  },
+  "typecheck/tier4": {
+   "passed": 89,
+   "total": 89
+  }
+ },
+ "failures": [],
+ "benchmarks": {
+  "resource/benchmark/gcd_table": {
+   "reference_s": 0.49753220297861844,
+   "candidate_s": 0.287519063
+  }
+ },
+ "impl": "minicore-candidate-1795818158-71558:/work/minicore"
+}

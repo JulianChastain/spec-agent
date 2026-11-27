@@ -1,0 +1,4 @@
+spec-agent: fatal: RangeError [ERR_OUT_OF_RANGE]: The value of "delay" is out of range. It must be an integer. Received 323943.99999999994
+    at AbortSignal.timeout (node:internal/abort_controller:239:5)
+    at runAgent (file:///opt/spec-agent/dist/spec-agent.mjs:79416:31)
+    at async main (file:///opt/spec-agent/dist/spec-agent.mjs:79536:18)

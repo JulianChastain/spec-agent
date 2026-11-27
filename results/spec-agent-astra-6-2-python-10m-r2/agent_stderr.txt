@@ -1,0 +1,82 @@
+APICallError2 [AI_APICallError]: Failed to process successful response
+    at handleFetchError2 (file:///opt/spec-agent/dist/spec-agent.mjs:73650:14)
+    at Object.pull (file:///opt/spec-agent/dist/spec-agent.mjs:75895:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  cause: TypeError: terminated
+      at Fetch.onAborted (node:internal/deps/undici/undici:12141:53)
+      at Fetch.emit (node:events:508:28)
+      at Fetch.terminate (node:internal/deps/undici/undici:11300:14)
+      at Object.onError (node:internal/deps/undici/undici:12260:38)
+      at Request.onError (node:internal/deps/undici/undici:2754:31)
+      at Object.errorRequest (node:internal/deps/undici/undici:1641:17)
+      at TLSSocket.onHttpSocketClose (node:internal/deps/undici/undici:7173:14)
+      at TLSSocket.emit (node:events:520:35)
+      at node:net:346:12
+      at Socket.done (node:_tls_wrap:649:7) {
+    [cause]: SocketError: other side closed
+        at TLSSocket.onHttpSocketEnd (node:internal/deps/undici/undici:7147:26)
+        at TLSSocket.emit (node:events:520:35)
+        at endReadableNT (node:internal/streams/readable:1701:12)
+        at process.processTicksAndRejections (node:internal/process/task_queues:89:21) {
+      code: 'UND_ERR_SOCKET',
+      socket: [Object]
+    }
+  },
+  url: 'https://openrouter.ai/api/v1/chat/completions',
+  requestBodyValues: {
+    model: 'openai/gpt-6.2-astra',
+    models: undefined,
+    logit_bias: undefined,
+    logprobs: undefined,
+    top_logprobs: undefined,
+    user: undefined,
+    parallel_tool_calls: undefined,
+    max_tokens: 32000,
+    temperature: undefined,
+    top_p: undefined,
+    frequency_penalty: undefined,
+    presence_penalty: undefined,
+    seed: undefined,
+    stop: undefined,
+    response_format: undefined,
+    top_k: undefined,
+    messages: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    include_reasoning: undefined,
+    reasoning: undefined,
+    usage: { include: true },
+    plugins: undefined,
+    web_search_options: undefined,
+    provider: { only: [Array], allow_fallbacks: false, require_parameters: true },
+    debug: undefined,
+    cache_control: undefined,
+    tools: [ [Object], [Object], [Object], [Object], [Object], [Object] ],
+    tool_choice: 'auto',
+    stream: true,
+    stream_options: undefined
+  },
+  statusCode: 200,
+  responseHeaders: {
+    'access-control-allow-origin': '*',
+    'access-control-expose-headers': 'WWW-Authenticate,PAYMENT-REQUIRED,Payment-Receipt,PAYMENT-RESPONSE,Location,X-Generation-Id,x-openrouter-error-origin,x-openrouter-error-tool,X-Provider-Name,request-id,x-openrouter-subscription-passthrough,anthropic-ratelimit-unified-status,Retry-After,cf-ray',
+    'alt-svc': 'h3=":443"; ma=86400',
+    'cache-control': 'no-cache',
+    'cf-ray': 'a6146e3d190428c9-EWR',
+    connection: 'keep-alive',
+    'content-type': 'text/event-stream',
+    date: 'Fri, 27 Nov 2026 22:04:48 GMT',
+    'permissions-policy': 'payment=(self "https://checkout.stripe.com" "https://connect-js.stripe.com" "https://js.stripe.com" "https://*.js.stripe.com" "https://hooks.stripe.com")',
+    'referrer-policy': 'no-referrer, strict-origin-when-cross-origin',
+    server: 'cloudflare',
+    'set-cookie': '__cf_bm=1pEQTzt7vj4oc4jmlqEAtpUtEWZyeJyFK.YfOonMEmU-1795817087.5349774-1.0.1.1-qyp.fcFhyHGYOIAF9SusMLZ7ilPYCexHa_HOFwTZt_B9wUDvRgWhL7XMF3EUfW_ELJbpJlw5HvQ_dlMYty1L2eRGK1nRjNQpWNuFriFLhTet_zIdjWQr7QVK_Da30D2i; HttpOnly; SameSite=None; Partitioned; Secure; Path=/; Domain=openrouter.ai; Expires=Fri, 27 Nov 2026 22:34:48 GMT',
+    'transfer-encoding': 'chunked',
+    'x-content-type-options': 'nosniff',
+    'x-generation-id': 'gen-1795817087-cxa4MRzuXD3gkADiM9EV',
+    'x-openrouter-release': 'api;23c92b1e-5c2e-457e-87cb-5719d6706dac'
+  },
+  responseBody: undefined,
+  isRetryable: true,
+  data: undefined,
+  Symbol(vercel.ai.error): true,
+  Symbol(vercel.ai.error.AI_APICallError): true
+}
+spec-agent: dollar budget after 10 steps, $0.4844

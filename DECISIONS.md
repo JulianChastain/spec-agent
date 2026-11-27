@@ -191,3 +191,10 @@ The gate is `scripts/smoke-check.ts`. Every check must pass for all three smoke 
   - If they differ while other sandboxes are on the network, it refuses to start the run rather than cut them off.
   - Verified: two more rebuild-and-ensure cycles left the proxy container untouched, still enforcing the OpenRouter allowlist.
 - This supersedes my reading of attempt 1, where I called the drops "intermittent upstream disconnects": they were this bug. The failed-call billing and the separate transport-error limit stay, because a real upstream drop can still happen. Attempt 3 re-runs all three, since the cost gate failed for the phase as a whole.
+
+**Attempt 3 (r3, 22:21 UTC): passed the gate.**
+
+- Every per-run check passed. The key spent $1.0502 over the window, and the three meters sum to $1.0502, so the cross-check agrees to the cent. No call failed, and the proxy container was never recreated.
+- **Scores:** Astra 100% (stopped on the dollar budget) and Opus 100% (`finish`). Carbon scored **0%**: it stopped on its own dollar budget after 4 calls and $0.32. Its next-call estimate is the largest output so far at the output price, up to 32K tokens × $10/1M, and that no longer fit in the $0.58 left. The check counts this as a sensible stop.
+- Carbon got 100% in r2 and 0% in r3 under identical settings. Smoke runs aren't part of the results, but this is a fair warning about n=2 in the main matrix.
+- **Smoke spend:** $2.85 by the harness meters across the nine runs. The key's own spend was $3.24, because attempt 1's three unbilled drops were never metered and attempt 2's two weren't found in time. The key figure is the true one.

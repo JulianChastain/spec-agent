@@ -1,0 +1,67 @@
+{
+ "id": "spec-agent-opus-5-5-python-10m-r1",
+ "agent": "spec-agent",
+ "model": "openrouter:anthropic/claude-opus-5.5",
+ "tag": "opus-5-5",
+ "agent_args": "",
+ "language": "python",
+ "budget": "10m",
+ "budget_s": 600,
+ "run": 1,
+ "cap_usd": 0.6,
+ "wall_s": 71.4,
+ "cost_usd": 0.153,
+ "cost_source": "reported per call by OpenRouter (usage.cost), summed by spec-agent",
+ "stop_reason": "agent finished",
+ "image": "minicore-run:spec-agent-opus-5-5-python-10m-r1",
+ "files": [
+  "./NOTES.md",
+  "./minicore"
+ ],
+ "score": 1.0,
+ "components": {
+  "suite": {
+   "passed": 344,
+   "total": 344,
+   "rate": 1.0
+  },
+  "generated": {
+   "passed": 2000,
+   "total": 2000,
+   "rate": 1.0
+  },
+  "typecheck": {
+   "passed": 400,
+   "total": 400,
+   "rate": 1.0
+  },
+  "resource": {
+   "passed": 17,
+   "total": 17,
+   "rate": 1.0
+  }
+ },
+ "tiers": {
+  "1": {
+   "passed": 581,
+   "total": 581,
+   "rate": 1.0
+  },
+  "2": {
+   "passed": 451,
+   "total": 451,
+   "rate": 1.0
+  },
+  "3": {
+   "passed": 1107,
+   "total": 1107,
+   "rate": 1.0
+  },
+  "4": {
+   "passed": 622,
+   "total": 622,
+   "rate": 1.0
+  }
+ },
+ "grade_error": null
+}
