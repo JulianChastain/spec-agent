@@ -155,3 +155,24 @@ This supersedes the direct-API setup above for every run in WRITEUP.md. The only
 - **Routing inside OpenRouter could vary; I pinned it.** Each vendor is pinned to one first-party host with fallbacks off (above), so a run never silently moves to Bedrock or Vertex mid-run. The cost of that choice: if the pinned host is down, the call fails instead of falling back. The loop then retries, and stops after three consecutive errors. Failed calls are counted per run in the report.
 - **Caching may behave differently from the direct APIs.** OpenAI writes are billed here and not there. Gemini's implicit hit rate was partial in the probe. OpenRouter's own docs disagree about Gemini. The report gives the measured cache-read share per model rather than assuming the direct APIs' behaviour.
 - **Prices are OpenRouter's.** They matched the direct prices on the run dates, except for OpenAI cache writes. Each run is metered on OpenRouter's billed figure, which is what the account actually paid.
+
+## Smoke tests through OpenRouter (2026-11-27)
+
+The gate is `scripts/smoke-check.ts`. Every check must pass for all three smoke runs, and the key's spend over the smoke window must match the runs' meters within 3%. The latest attempt of each run counts. Earlier attempts stay in `results/` and are listed here.
+
+**Before smoke: the pipeline check.** A `mock:stub` run (`spec-agent-mock-python-3m-r2`) went through the rebuilt sandbox, the new proxy, freeze and grade. It scored 4.1246%, the same as r1 and as the cheater zoo's `constant` stub.
+
+**Attempt 1 (r1, 21:52 UTC): failed the gate. Two causes, both infrastructure, both fixed.**
+
+- **Carbon crashed with `RangeError [ERR_OUT_OF_RANGE]`.** It happened at step 3, after writing a 10,023-token interpreter. The loop's per-call `AbortSignal.timeout((timeBudgetS - elapsed) * 1000)` was handed 323943.99999999994. Node only accepts whole milliseconds, and float error produces a fraction for some elapsed times, so the bug depended on timing. That's why no earlier run hit it. The fix floors the delay. A regression test uses a clock value that reproduces it (commit "Fix a crash: AbortSignal.timeout() …").
+- **Dropped streams went unbilled. Over the window the key spent $0.9821; the meters summed $0.7526 (−23%).**
+  - Three calls failed with `AI_APICallError: Failed to process successful response`: two in Astra's run, one in Opus's. The cause chain, which the log had dropped, was `TypeError: terminated <- UND_ERR_SOCKET: other side closed`. OpenRouter had answered `200 text/event-stream` and was streaming when the connection closed.
+  - OpenRouter still billed those calls. `GET /api/v1/generation` shows two of them as `cancelled`: $0.0895 (Astra, 692 completion tokens) and $0.0733 (Opus, 1,173 completion tokens). That's $0.163 of the $0.229 gap. The third (Astra) is "not found" there, so its cost isn't known per call, but the key-level check still counts it.
+  - The drops are intermittent, not caused by the proxy. Twelve concurrent 45-second Haiku streams succeeded both on the host and through the sandbox proxy, and replaying Astra's failed step succeeded on both paths too.
+
+  The fix (commit "Bill calls that fail mid-stream …") has three parts:
+  1. The model-call error now logs its whole cause chain.
+  2. For an OpenRouter call, the loop looks up what the failed generation was billed (by `x-generation-id`, with retries while the stats appear). It logs that as a `model_call` event with `failed: true`, so the agent's budget, the harness meter and the report all count it.
+  3. Dropped connections get their own limit of 6 consecutive failures before the run stops with `model error`. Other errors keep the limit of 3, and any success resets both. Without this, Astra's two drops in a row were one away from ending a run for an infrastructure reason.
+- Astra and Opus passed every per-run check in attempt 1, but the phase-level cost check is part of the gate, so all three runs were re-run on the fixed bundle as attempt 2 (r2).
+- **The scores weren't the problem.** Astra and Opus both scored **100%** (2,761/2,761) inside the 10-minute, $0.60 smoke budget. Opus did it in 4 calls and 71 s: it wrote a 238-line interpreter in one call, checked the 20 examples, and called `finish`. I read the frozen interpreter in full. It reads only the program file, and it handles the documented traps explicitly (`set_int_max_str_digits(0)`, the recursion limit plus a 1 GB thread stack, `//`). Nothing points to a leak; Mini-Core in Python is within one-shot reach of these models.
