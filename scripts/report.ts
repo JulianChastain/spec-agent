@@ -47,6 +47,8 @@ export interface Run {
   latenciesMs: number[]; // main-loop calls only
   ttftsMs: number[];
   wallS: number;
+  capUsd: number; // the harness's --cap
+  budgetS: number; // the harness's time budget, seconds
   compactions: number;
   toolCalls: number;
   toolErrors: number;
@@ -110,6 +112,8 @@ export function loadRun(dir: string): Run | null {
     latenciesMs: main.map((e) => e.latencyMs),
     ttftsMs: main.map((e) => e.ttftMs).filter((x: number | null) => x !== null),
     wallS: r.wall_s,
+    capUsd: r.cap_usd ?? 0,
+    budgetS: r.budget_s ?? 0,
     compactions: events.filter((e) => e.type === "compaction").length,
     toolCalls: events.filter((e) => e.type === "tool_call").length,
     toolErrors: events.filter((e) => e.type === "tool_call" && !e.ok).length,
@@ -184,10 +188,10 @@ function headlineTable(runs: Run[]): string {
     const c = mean(rs.map((r) => r.costUsd))!;
     const each = (f: (r: Run) => string) => rs.map(f).join(" / ");
     return `| ${rs[0]!.model} | ${each((r) => (r.crashed ? "**CRASH** " : "") + pct(r.score))} | **${pct(m)}** | ${each((r) => usd(r.costUsd))} | `
-      + `${each((r) => String(r.mainCalls))} | ${each((r) => `${r.harnessStop} / ${r.agentStop}`)} | `
+      + `${each((r) => String(r.mainCalls))} | ${each((r) => mins(r.wallS))} | ${rs.map((r) => `${r.harnessStop} / ${r.agentStop}`).join("; ")} | `
       + `${m === null || !c ? "–" : `${(100 * m / c).toFixed(2)} pts/$`} |`;
   });
-  return table("| Model | Score (r1 / r2) | Mean | Cost (r1 / r2) | Steps (r1 / r2) | Stop, harness / agent (r1 / r2) | Mean score per mean $ |", rows);
+  return table("| Model | Score (r1 / r2) | Mean | Cost (r1 / r2) | Steps (r1 / r2) | Wall (r1 / r2) | Stop, harness / agent (r1; r2) | Mean score per mean $ |", rows);
 }
 
 function tierTable(runs: Run[]): string {
@@ -272,7 +276,48 @@ function costCheckTable(all: Run[], snaps: UsageSnapshot[]): string {
 }
 const usd4 = (x: number) => `$${x.toFixed(4)}`;
 
-export function buildSections(all: Run[], snaps: UsageSnapshot[] = []): Record<string, string> {
+/** The numbers WRITEUP.md's prose relies on, generated so none is typed by hand. */
+function factsList(all: Run[], snaps: UsageSnapshot[]): string {
+  const two = all.filter((r) => r.budget === "2h");
+  const smoke = all.filter((r) => r.budget !== "2h");
+  const scores = two.map((r) => r.score).filter((x): x is number => x !== null);
+  const count = (xs: string[]) => [...new Set(xs)].map((x) => `${x} × ${xs.filter((y) => y === x).length}`).join(", ");
+  const maxBy = (rs: Run[], f: (r: Run) => number) => rs.reduce((a, r) => (f(r) > f(a) ? r : a));
+  const capShare = maxBy(two, (r) => r.costUsd / (r.capUsd || Infinity));
+  const timeShare = maxBy(two, (r) => r.wallS / (r.budgetS || Infinity));
+  const d = usageDeltas(snaps);
+  const sorted = [...snaps].sort((a, b) => a.takenAt.localeCompare(b.takenAt));
+  const latest = sorted.at(-1);
+  // Everything the key spent before the first smoke window opened: the cache
+  // probe. (Its own after-snapshot lagged; see DECISIONS.md.)
+  const beforeSmoke = sorted.find((x) => x.label === "smoke-before")?.usage ?? 0;
+  const firstUsage = sorted[0]?.usage ?? 0;
+  const meters = (rs: Run[]) => rs.reduce((a, r) => a + r.costUsd, 0);
+  return [
+    `- 2-hour runs: ${two.length}, graded: ${two.filter((r) => r.score !== null).length}, crashed: ${two.filter((r) => r.crashed).length}. Scores range from ${pct(Math.min(...scores))} to ${pct(Math.max(...scores))}.`,
+    `- 2-hour stop reasons (agent): ${count(two.map((r) => r.agentStop))}. Nudges across all ${all.length} runs: ${all.reduce((a, r) => a + r.nudges, 0)}.`,
+    `- Largest share of its dollar cap any 2-hour run used: ${pct(capShare.costUsd / capShare.capUsd)} (${short(capShare)}, ${usd(capShare.costUsd)} of ${usd(capShare.capUsd)}).`,
+    `- Largest share of its time budget any 2-hour run used: ${pct(timeShare.wallS / timeShare.budgetS)} (${short(timeShare)}, ${mins(timeShare.wallS)} of ${mins(timeShare.budgetS)}).`,
+    `- Smoke runs: ${smoke.length} (${smoke.filter((r) => r.crashed).length} crashed). Smoke scores: ${count(smoke.map((r) => pct(r.score)))}.`,
+    `- Spend by harness meters: smoke ${usd(meters(smoke))}, 2-hour ${usd(meters(two))}, total ${usd(meters(all))}.`,
+    `- Spend by the key's own counter: before the first smoke window (the cache probe) ${usd(beforeSmoke - firstUsage)}, smoke ${usd(d.smoke?.delta ?? 0)}, 2-hour ${usd(d.main?.delta ?? 0)}; cumulative key usage at the last snapshot ${latest ? usd(latest.usage) : "–"}.`,
+  ].join("\n");
+}
+
+export interface PriceSnapshot { file: string; retrievedAt: string; models: Record<string, { pinnedEndpoint: string; pinnedEndpointPricing: Record<string, unknown> | null }> }
+
+/** What OpenRouter listed for each model's pinned endpoint at each snapshot (USD per 1M tokens). */
+function pricesTable(snaps: PriceSnapshot[]): string {
+  const per1m = (x: unknown) => (x === undefined || x === null ? "–" : `${(Number(x) * 1e6).toFixed(2)}`);
+  const rows = [...snaps].sort((a, b) => a.retrievedAt.localeCompare(b.retrievedAt)).flatMap((s) =>
+    Object.entries(s.models).map(([k, m]) => {
+      const p = m.pinnedEndpointPricing ?? {};
+      return `| ${s.retrievedAt.slice(0, 16).replace("T", " ")} UTC (${s.file}) | ${k} | ${m.pinnedEndpoint} | ${per1m(p.prompt)} | ${per1m(p.input_cache_read)} | ${per1m(p.input_cache_write)} | ${per1m(p.completion)} |`;
+    }));
+  return table("| Snapshot | Model | Pinned endpoint | Input | Cache read | Cache write | Output |", rows);
+}
+
+export function buildSections(all: Run[], snaps: UsageSnapshot[] = [], prices: PriceSnapshot[] = []): Record<string, string> {
   const two = all.filter((r) => r.budget === "2h").sort((a, b) => a.id.localeCompare(b.id));
   const mainRuns = two.filter((r) => r.compaction);
   // The ablation's "on" arm is the main-matrix runs of the same model.
@@ -288,6 +333,8 @@ export function buildSections(all: Run[], snaps: UsageSnapshot[] = []): Record<s
     costcheck: all.length ? costCheckTable(all, snaps) : "_No runs._",
     activity: two.length ? activityTable(two) : "_No 2h runs._",
     spend: spendTable(all),
+    facts: two.length ? factsList(all, snaps) : "_No 2h runs._",
+    prices: prices.length ? pricesTable(prices) : "_No price snapshots._",
   };
 }
 
@@ -306,7 +353,12 @@ function main() {
   const snaps: UsageSnapshot[] = existsSync(usageDir)
     ? readdirSync(usageDir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(path.join(usageDir, f), "utf8")))
     : [];
-  const sections = buildSections(loadAll(dir), snaps);
+  const pricesDir = path.join(dir, "openrouter-prices");
+  const prices: PriceSnapshot[] = existsSync(pricesDir)
+    ? readdirSync(pricesDir).filter((f) => f.endsWith(".json"))
+      .map((f) => ({ file: f, ...JSON.parse(readFileSync(path.join(pricesDir, f), "utf8")) }))
+    : [];
+  const sections = buildSections(loadAll(dir), snaps, prices);
   if (!args.includes("--write")) {
     for (const [k, v] of Object.entries(sections)) console.log(`## ${k}\n\n${v}\n`);
     return;

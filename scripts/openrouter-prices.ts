@@ -4,7 +4,7 @@
 //
 //   npx tsx scripts/openrouter-prices.ts <label>
 //
-// Writes results/openrouter-prices/<UTC date>-<label>.json. The models API is
+// Writes results/openrouter-prices/<ISO time>-<label>.json. The models API is
 // public; no key is sent.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -45,7 +45,8 @@ async function main() {
   }
   const dir = path.join(ROOT, "results", "openrouter-prices");
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${now.toISOString().slice(0, 10)}-${label}.json`);
+  // The time is in the name: a date alone let a later same-day snapshot overwrite an earlier one.
+  const file = path.join(dir, `${now.toISOString().replace(/[:.]/g, "-")}-${label}.json`);
   writeFileSync(file, JSON.stringify(out, null, 1) + "\n");
   console.log(`wrote ${path.relative(ROOT, file)}`);
 }
