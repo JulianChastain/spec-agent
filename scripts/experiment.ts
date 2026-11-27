@@ -1,6 +1,10 @@
 // Run one phase of experiments.json through replicate-lang's harness.
 //
-//   npx tsx scripts/experiment.ts <phase> [--dry-run]
+//   npx tsx scripts/experiment.ts <phase> [--dry-run] [--only TAG,...] [--run-number N]
+//
+// --only and --run-number re-run part of a phase under a new run number
+// (runs are never overwritten), e.g. after an infrastructure failure. Every
+// re-run, and its cause, is recorded in DECISIONS.md.
 //
 // Spend guard: before starting a run, the script adds up what every finished
 // spec-agent run has actually cost (result.json) plus the caps of runs still
@@ -47,6 +51,10 @@ export function spentSoFar(resultsDir: string): { total: number; unfinished: str
 async function main() {
   const [phaseName, ...flags] = process.argv.slice(2);
   const dryRun = flags.includes("--dry-run");
+  const flag = (name: string) => { const i = flags.indexOf(name); return i >= 0 ? flags[i + 1] : undefined; };
+  const only = flag("--only")?.split(",");
+  const runNumber = flag("--run-number") === undefined ? undefined : Number(flag("--run-number"));
+  if (runNumber !== undefined && !(Number.isInteger(runNumber) && runNumber > 0)) throw new Error("--run-number must be a positive integer");
   const plan: Plan = JSON.parse(readFileSync(path.join(ROOT, "experiments.json"), "utf8"));
   const phase = plan.phases[phaseName ?? ""];
   if (!phase) throw new Error(`phase must be one of ${Object.keys(plan.phases).join(", ")}`);
@@ -62,7 +70,12 @@ async function main() {
 
   // OpenRouter phases: record the key's spend and the listed prices before
   // and after, for the report's cross-check against the per-call costs.
-  const viaOpenRouter = phase.runs.some((r) => r.model.startsWith("openrouter:")) && !dryRun;
+  // The runs this invocation starts: the phase, or the --only subset, renumbered by --run-number.
+  const selected = phase.runs
+    .filter((r) => !only || only.includes(r.tag))
+    .map((r) => (runNumber === undefined ? r : { ...r, run: runNumber }));
+  if (!selected.length) throw new Error(`no runs in phase ${phaseName} match --only ${only?.join(",")}`);
+  const viaOpenRouter = selected.some((r) => r.model.startsWith("openrouter:")) && !dryRun;
   const snapshot = async (when: string) => {
     if (!viaOpenRouter) return;
     const key = dotenv.OPENROUTER_API_KEY;
@@ -77,7 +90,7 @@ async function main() {
   const logDir = path.join(ROOT, "runs", "logs");
   mkdirSync(logDir, { recursive: true });
   const reserved = new Map<string, number>(); // in-flight run id -> its cap + reserve
-  const queue = [...phase.runs];
+  const queue = [...selected];
   const running = new Set<Promise<void>>();
 
   const startable = (r: RunSpec): { ok: boolean; why: string } => {

@@ -12,10 +12,10 @@
 //   - every call went to the pinned first-party upstream;
 //   - it was graded.
 // Secrets are checked separately by scripts/check-secrets.ts.
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { parseModel } from "../src/providers.ts";
-import { loadAll, type Run } from "./report.ts";
+import { loadAll, type Run, type UsageSnapshot } from "./report.ts";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SENSIBLE = new Set(["finish", "time budget", "dollar budget", "step limit", "context full"]);
@@ -48,15 +48,39 @@ function main() {
   const smoke = plan.phases.smoke;
   const runs = loadAll(dir).filter((r) => r.budget === smoke.budget);
   let failed = 0;
+  const latest: Run[] = [];
   for (const spec of smoke.runs) {
     const matching = runs.filter((r) => r.model === spec.model).sort((a, b) => a.run - b.run);
     const r = matching.at(-1); // the latest attempt counts; earlier ones are recorded in DECISIONS.md
     if (!r) { console.log(`MISSING ${spec.model}`); failed++; continue; }
+    latest.push(r);
     const fails = checkRun(r);
     console.log(`${fails.length ? "FAIL" : "PASS"} ${r.id}: score ${r.score === null ? "–" : (100 * r.score).toFixed(2) + "%"}, `
       + `$${r.costUsd.toFixed(4)}, ${r.mainCalls} calls, ${r.toolCalls - r.toolErrors}/${r.toolCalls} tool calls ok, `
+      + `${r.failedBilledCalls} failed call(s) billed $${r.failedBilledUsd.toFixed(4)}, `
       + `stop ${r.harnessStop} / ${r.agentStop}${fails.length ? `\n    ${fails.join("\n    ")}` : ""}`);
     if (fails.length) failed++;
+  }
+  // The phase as a whole: the key's spend between the latest smoke-before and
+  // smoke-after snapshots must match the meters of the latest attempts, which
+  // are the runs that window brackets, within 3%. This catches cost that the
+  // per-call figures miss, such as a dropped call OpenRouter still billed.
+  const usageDir = path.join(ROOT, "results", "openrouter-usage");
+  const snaps: UsageSnapshot[] = existsSync(usageDir)
+    ? readdirSync(usageDir).filter((f) => f.endsWith(".json"))
+      .map((f) => JSON.parse(readFileSync(path.join(usageDir, f), "utf8")) as UsageSnapshot)
+      .sort((a, b) => a.takenAt.localeCompare(b.takenAt))
+    : [];
+  const after = snaps.findLast((x) => x.label === "smoke-after");
+  const before = after && snaps.filter((x) => x.label === "smoke-before" && x.takenAt < after.takenAt).at(-1);
+  if (!before || !after) { console.log("FAIL no smoke-before/smoke-after usage snapshots"); failed++; }
+  else {
+    const meters = latest.reduce((a, r) => a + r.costUsd, 0);
+    const key = after.usage - before.usage;
+    const ok = key > 0 && Math.abs(meters - key) / key <= 0.03;
+    console.log(`${ok ? "PASS" : "FAIL"} key spend $${key.toFixed(4)} (${before.takenAt} .. ${after.takenAt}) `
+      + `vs meters $${meters.toFixed(4)} of ${latest.map((r) => r.id).join(", ")}`);
+    if (!ok) failed++;
   }
   if (failed) process.exitCode = 1;
 }
